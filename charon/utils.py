@@ -1,4 +1,3 @@
-import contextlib
 import json
 from enum import Enum
 from pathlib import Path
@@ -19,6 +18,9 @@ class Blob:
         self.dxf_base = dxf_base
         self.digest = digest
         self.repository = repository
+
+    def __repr__(self):
+        return f"{self.repository}/{self.digest}"
 
 
 class Manifest:
@@ -88,7 +90,7 @@ def add_blobs_to_zip(
         bytes_iterator, total_size = repository_dxf.pull_blob(blob.digest, size=True)
 
         # we write the blob directly to the zip file
-        with tqdm(total=total_size) as pbar:
+        with tqdm(total=total_size, unit="B", unit_scale=True) as pbar:
             with zip_file.open(
                 f"blobs/{blob.digest}", "w", force_zip64=True
             ) as blob_in_zip:
@@ -197,14 +199,28 @@ def load_single_image_from_zip_in_registry(
         dxf_base, docker_image, PayloadSide.DECODER, content=manifest_content
     )
     push_all_blobs_from_manifest(dxf_base, zip_file, manifest)
+    dxf = DXF.from_base(dxf_base, manifest.repository)
+    dxf.set_manifest(manifest.tag, manifest.content)
 
 
-def load_zip_images_in_registry(dxf_base: DXFBase, zip_file_path: Path) -> None:
-    with ZipFile(zip_file_path, "r") as zip_file:
-        payload_descriptor = json.loads(
-            zip_file.read("payload_descriptor.json").decode()
+def load_zip_images_in_registry(dxf_base: DXFBase, zip_file: ZipFile) -> None:
+    payload_descriptor = json.loads(zip_file.read("payload_descriptor.json").decode())
+    for docker_image, manifest_path_in_zip in payload_descriptor.items():
+        load_single_image_from_zip_in_registry(
+            dxf_base, zip_file, docker_image, manifest_path_in_zip
         )
-        for docker_image, manifest_path_in_zip in payload_descriptor.items():
-            load_single_image_from_zip_in_registry(
-                dxf_base, zip_file, docker_image, manifest_path_in_zip
-            )
+
+
+def push_payload_to_registry(
+    registry: str,
+    zip_file: Union[IO, Path, str],
+    insecure: bool = False,
+    username: Optional[str] = None,
+    password: Optional[str] = None,
+):
+
+    with DXFBase(host=registry, insecure=insecure) as dxf_base:
+        if username is not None:
+            dxf_base.authenticate(username, password)
+        with ZipFile(zip_file, "r") as zip_file:
+            load_zip_images_in_registry(dxf_base, zip_file)
