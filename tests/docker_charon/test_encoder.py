@@ -10,7 +10,7 @@ from docker_charon.encoder import (
 
 
 def test_get_manifest_and_list_of_all_blobs():
-    dxf_base = DXFBase("localhost:5000", insecure=True)
+    dxf_base = DXFBase("localhost:5000", secure=False)
 
     manifest, blobs = get_manifest_and_list_of_blobs_to_pull(
         dxf_base, "ubuntu:bionic-20180125"
@@ -63,18 +63,18 @@ def test_get_manifest_and_list_of_all_blobs():
 def test_make_payload_from_path(tmp_path):
     zip_path = tmp_path / "test.zip"
 
-    make_payload("localhost:5000", zip_path, ["ubuntu:bionic-20180125"], insecure=True)
+    make_payload("localhost:5000", zip_path, ["ubuntu:bionic-20180125"], secure=False)
 
 
 def test_make_payload_from_str(tmp_path):
     zip_path = tmp_path / "test.zip"
 
     make_payload(
-        "localhost:5000", str(zip_path), ["ubuntu:bionic-20180125"], insecure=True
+        "localhost:5000", str(zip_path), ["ubuntu:bionic-20180125"], secure=False
     )
 
 
 def test_make_payload_from_opened_file(tmp_path):
     zip_path = tmp_path / "test.zip"
     with open(zip_path, "wb") as f:
-        make_payload("localhost:5000", f, ["ubuntu:bionic-20180125"], insecure=True)
+        make_payload("localhost:5000", f, ["ubuntu:bionic-20180125"], secure=False)

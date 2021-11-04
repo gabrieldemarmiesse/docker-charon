@@ -125,14 +125,37 @@ def make_payload(
     zip_file: Union[IO, Path, str],
     docker_images_to_transfer: list[str],
     docker_images_already_transferred: list[str] = [],
-    insecure: bool = False,
+    secure: bool = True,
     username: Optional[str] = None,
     password: Optional[str] = None,
 ) -> None:
     """
     Creates a payload from a list of docker images
+    All the docker images must be in the same registry.
+    This is currently a limitation of the docker-charon package.
+
+    If you are interested in multi-registries, please open an issue.
+
+    # Arguments
+        registry: The registry to pull the images from. The name of the registry
+            must not be included in `docker_images_to_transfer` and
+            `docker_images_already_transferred`.
+        zip_file: The path to the zip file to create. It can be a `pathlib.Path` or
+            a `str`. It's also possible to pass a file-like object. The payload with
+            all the docker images is a single zip file.
+        docker_images_to_transfer: The list of docker images to transfer. Do not include
+            the registry name in the image name.
+        docker_images_already_transferred: The list of docker images that have already
+            been transferred to the air-gapped registry. Do not include the registry
+            name in the image name.
+        secure: Set to `False` if the registry doesn't support HTTPS (TLS). Default
+            is `True`.
+        username: The username to use for authentication to the registry. Optional if
+            the registry doesn't require authentication.
+        password: The password to use for authentication to the registry. Optional if
+            the registry doesn't require authentication.
     """
-    with DXFBase(host=registry, insecure=insecure) as dxf_base:
+    with DXFBase(host=registry, insecure=not secure) as dxf_base:
         if username is not None:
             dxf_base.authenticate(username, password)
 
