@@ -1,0 +1,21 @@
+name: Run the python linters
+
+on: [push]
+
+
+jobs:
+  python-linters:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: lint
+      run: |
+        pip install -r lint-requirements.txt
+        black --check ./
+        isort --check ./
+        flake8 ./
