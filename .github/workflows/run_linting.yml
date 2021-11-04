@@ -15,7 +15,7 @@ jobs:
         fetch-depth: 0
     - name: lint
       run: |
-        pip install -r lint-requirements.txt
+        pip install -r tests/requirements.txt
         black --check ./
         isort --check ./
         flake8 ./
