@@ -23,10 +23,10 @@ def add_destination_registry():
 def test_end_to_end_single_image(tmp_path):
     payload_path = tmp_path / "payload.json"
     make_payload(
-        "localhost:5000", payload_path, ["ubuntu:bionic-20180125"], insecure=True
+        "localhost:5000", payload_path, ["ubuntu:bionic-20180125"], secure=False
     )
 
-    push_payload_to_registry("localhost:5001", payload_path, insecure=True)
+    push_payload_to_registry("localhost:5001", payload_path, secure=False)
 
     # we make sure the docker image exists in the registry and is working
     docker.image.remove("localhost:5001/ubuntu:bionic-20180125", force=True)
@@ -43,10 +43,10 @@ def test_end_to_end_multiple_images(tmp_path):
         "localhost:5000",
         payload_path,
         ["ubuntu:bionic-20180125", "ubuntu:augmented"],
-        insecure=True,
+        secure=False,
     )
 
-    push_payload_to_registry("localhost:5001", payload_path, insecure=True)
+    push_payload_to_registry("localhost:5001", payload_path, secure=False)
 
     # we make sure the docker image exists in the registry and is working
     docker.image.remove("localhost:5001/ubuntu:bionic-20180125", force=True)
@@ -68,10 +68,10 @@ def test_end_to_end_multiple_images(tmp_path):
 def test_end_to_end_only_necessary_layers(tmp_path):
     payload_path = tmp_path / "payload.json"
     make_payload(
-        "localhost:5000", payload_path, ["ubuntu:bionic-20180125"], insecure=True
+        "localhost:5000", payload_path, ["ubuntu:bionic-20180125"], secure=False
     )
 
-    push_payload_to_registry("localhost:5001", payload_path, insecure=True)
+    push_payload_to_registry("localhost:5001", payload_path, secure=False)
 
     # the bionic image is now in the registry. We can make a payload for the
     # augmented version, and it has a lot of layers in common
@@ -81,7 +81,7 @@ def test_end_to_end_only_necessary_layers(tmp_path):
         payload_path,
         ["ubuntu:augmented"],
         docker_images_already_transferred=["ubuntu:bionic-20180125"],
-        insecure=True,
+        secure=False,
     )
 
     # we make sure that only two blobs are in the zip: the image configuration
@@ -94,7 +94,7 @@ def test_end_to_end_only_necessary_layers(tmp_path):
     assert len(all_blobs) == 2
 
     # we load the payload and make sure the augmented version is working
-    push_payload_to_registry("localhost:5001", payload_path, insecure=True)
+    push_payload_to_registry("localhost:5001", payload_path, secure=False)
 
     docker.image.remove("localhost:5001/ubuntu:augmented", force=True)
     assert (
