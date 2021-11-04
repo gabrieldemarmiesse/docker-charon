@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from enum import Enum
+from pathlib import Path
 from typing import IO, Iterator, Optional
 
 from dxf import DXF, DXFBase
@@ -78,3 +79,6 @@ def file_to_generator(file_like: IO) -> Iterator[bytes]:
         if not chunk:
             break
         yield chunk
+
+
+PROJECT_ROOT = Path(__file__).parents[1]
