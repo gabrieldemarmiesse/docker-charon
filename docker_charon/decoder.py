@@ -7,7 +7,7 @@ from zipfile import ZipFile
 
 from dxf import DXF, DXFBase
 
-from docker_charon.utils import (
+from docker_charon.common import (
     Manifest,
     PayloadSide,
     file_to_generator,

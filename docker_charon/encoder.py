@@ -8,7 +8,7 @@ from zipfile import ZipFile
 from dxf import DXF, DXFBase
 from tqdm import tqdm
 
-from docker_charon.utils import Blob, Manifest, PayloadSide, progress_as_string
+from docker_charon.common import Blob, Manifest, PayloadSide, progress_as_string
 
 
 def add_blobs_to_zip(
@@ -121,10 +121,10 @@ def create_zip_from_docker_images(
 
 
 def make_payload(
-    docker_images_to_transfer: list[str],
-    docker_images_already_transferred: list[str],
     registry: str,
     zip_file: Union[IO, Path, str],
+    docker_images_to_transfer: list[str],
+    docker_images_already_transferred: list[str] = [],
     insecure: bool = False,
     username: Optional[str] = None,
     password: Optional[str] = None,
