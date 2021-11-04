@@ -40,11 +40,11 @@ class Manifest:
 
     @property
     def repository(self) -> str:
-        return self.docker_image_name.split(":")[0]
+        return self.docker_image_name.split(":", 1)[0]
 
     @property
     def tag(self) -> str:
-        return self.docker_image_name.split(":")[1]
+        return self.docker_image_name.split(":", 1)[1]
 
     @property
     def content(self) -> str:
