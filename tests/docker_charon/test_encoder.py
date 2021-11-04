@@ -10,7 +10,7 @@ from docker_charon.encoder import (
 
 
 def test_get_manifest_and_list_of_all_blobs():
-    dxf_base = DXFBase("localhost:5000", secure=False)
+    dxf_base = DXFBase("localhost:5000", insecure=True)
 
     manifest, blobs = get_manifest_and_list_of_blobs_to_pull(
         dxf_base, "ubuntu:bionic-20180125"
