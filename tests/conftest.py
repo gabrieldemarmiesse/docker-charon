@@ -1,6 +1,8 @@
 import pytest
 from python_on_whales import docker
 
+from docker_charon.common import PROJECT_ROOT
+
 
 def transfer_to_base_registry(image_name):
     # we transfer the image to the local registry
@@ -20,5 +22,12 @@ def initialize_local_registry():
         name="docker-charon-test-registry",
     )
     transfer_to_base_registry("ubuntu:bionic-20180125")
+
+    docker.build(
+        context_path=PROJECT_ROOT / "tests",
+        file=PROJECT_ROOT / "tests" / "augmented-ubuntu.Dockerfile",
+        tags=["localhost:5000/ubuntu:augmented"],
+        push=True,
+    )
     yield
     docker.remove(base_registry, force=True, volumes=True)
