@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 from enum import Enum
 from pathlib import Path
@@ -21,6 +23,9 @@ class Blob:
 
     def __repr__(self):
         return f"{self.repository}/{self.digest}"
+
+    def __eq__(self, other: Blob):
+        return self.digest == other.digest and self.repository == other.repository
 
 
 class Manifest:
@@ -78,10 +83,18 @@ def progress_as_string(index: int, container: list) -> str:
 
 
 def add_blobs_to_zip(
-    dxf_base: DXFBase, zip_file: ZipFile, blobs_to_pull: list[Blob]
+    dxf_base: DXFBase,
+    zip_file: ZipFile,
+    blobs_to_pull: list[Blob],
+    blobs_already_transferred: list[Blob],
 ) -> None:
 
     for blob_index, blob in enumerate(blobs_to_pull):
+        if blob in blobs_already_transferred:
+            print(
+                f"{progress_as_string(blob_index, blobs_to_pull)} Skipping {blob} because it's already transferred."
+            )
+            continue
         print(
             f"{progress_as_string(blob_index, blobs_to_pull)} "
             f"Pulling blob {blob} and storing it in the zip"
@@ -109,7 +122,7 @@ def add_manifests_to_zip(zip_file: ZipFile, manifests: list[Manifest]) -> Iterat
 
 
 def get_manifests_and_list_of_all_blobs(
-    dxf_base: DXFBase, docker_images: list[str]
+    dxf_base: DXFBase, docker_images: Iterator[str]
 ) -> tuple[list[Manifest], list[Blob]]:
     manifests = []
     blobs_to_pull = []
@@ -139,19 +152,41 @@ def write_payload_descriptor_to_zip(
     )
 
 
+def remove_images_already_transferred(
+    docker_images_to_transfer: list[str], docker_images_already_transferred: list[str]
+) -> Iterator[str]:
+    for docker_image in docker_images_to_transfer:
+        if docker_image not in docker_images_already_transferred:
+            yield docker_image
+        else:
+            print(f"Skipping {docker_image} as it has already been transferred")
+
+
 def create_zip_from_docker_images(
-    dxf_base: DXFBase, docker_images: list[str], zip_file: ZipFile
+    dxf_base: DXFBase,
+    docker_images_to_transfer: list[str],
+    docker_images_already_transferred: list[str],
+    zip_file: ZipFile,
 ) -> None:
-    manifests, blobs_to_pull = get_manifests_and_list_of_all_blobs(
-        dxf_base, docker_images
+    docker_images_to_transfer = remove_images_already_transferred(
+        docker_images_to_transfer, docker_images_already_transferred
     )
-    add_blobs_to_zip(dxf_base, zip_file, uniquify_blobs(blobs_to_pull))
+    manifests, blobs_to_pull = get_manifests_and_list_of_all_blobs(
+        dxf_base, docker_images_to_transfer
+    )
+    _, blobs_already_transferred = get_manifests_and_list_of_all_blobs(
+        dxf_base, docker_images_already_transferred
+    )
+    add_blobs_to_zip(
+        dxf_base, zip_file, uniquify_blobs(blobs_to_pull), blobs_already_transferred
+    )
     manifests_paths = add_manifests_to_zip(zip_file, manifests)
     write_payload_descriptor_to_zip(zip_file, manifests, manifests_paths)
 
 
 def make_payload(
-    docker_images: list[str],
+    docker_images_to_transfer: list[str],
+    docker_images_already_transferred: list[str],
     registry: str,
     zip_file: Union[IO, Path, str],
     insecure: bool = False,
@@ -166,7 +201,12 @@ def make_payload(
             dxf_base.authenticate(username, password)
 
         with ZipFile(zip_file, "w") as zip_file:
-            create_zip_from_docker_images(dxf_base, docker_images, zip_file)
+            create_zip_from_docker_images(
+                dxf_base,
+                docker_images_to_transfer,
+                docker_images_already_transferred,
+                zip_file,
+            )
 
 
 def file_to_generator(file_like: IO) -> Iterator[bytes]:
@@ -186,8 +226,14 @@ def push_all_blobs_from_manifest(
             f"{progress_as_string(blob_index, list_of_blobs)} " f"Pushing blob {blob}"
         )
         dxf = DXF.from_base(dxf_base, blob.repository)
-        with zip_file.open(f"blobs/{blob.digest}", "r") as blob_in_zip:
-            dxf.push_blob(data=file_to_generator(blob_in_zip), digest=blob.digest)
+
+        # we try to open the file in the zip and push it. If the file doesn't
+        # exists in the zip, it means that it's already been pushed.
+        try:
+            with zip_file.open(f"blobs/{blob.digest}", "r") as blob_in_zip:
+                dxf.push_blob(data=file_to_generator(blob_in_zip), digest=blob.digest)
+        except KeyError:
+            print(f"Skipping {blob} as it has already been pushed")
 
 
 def load_single_image_from_zip_in_registry(
