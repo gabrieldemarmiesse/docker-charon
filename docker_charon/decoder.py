@@ -45,7 +45,7 @@ def push_payload_to_registry(
             or a file-like object.
         strict: `False` by default. If True, it will raise an error if the
             some blobs/images are missing.
-            That can happen if for example the user
+            That can happen if the user
             set an image in `docker_images_already_transferred`
             that is not in the registry.
         secure: whether to use TLS (HTTPS) or not to connect to the registry,
