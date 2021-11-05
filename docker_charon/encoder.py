@@ -78,24 +78,38 @@ def uniquify_blobs(blobs: list[Blob]) -> list[Blob]:
 
 
 def write_payload_descriptor_to_zip(
-    zip_file: ZipFile, manifests: list[Manifest], manifests_paths: Iterator[str]
+    zip_file: ZipFile,
+    manifests: list[Manifest],
+    manifests_paths: Iterator[str],
+    docker_images_to_skip: list[str],
 ):
     payload_descriptor = {}
     for manifest, manifest_path in zip(manifests, manifests_paths):
         payload_descriptor[manifest.docker_image_name] = manifest_path
+
+    # also want to add the docker images that we are skipping
+    # 1) So that in the air gapped system, the user knows what was needed for the payload
+    # 2) So that we can run checks on the decoder side and make sure the images actually
+    #    are in the registry.
+    for docker_image_to_skip in docker_images_to_skip:
+        payload_descriptor[docker_image_to_skip] = None
     zip_file.writestr(
         "payload_descriptor.json", json.dumps(payload_descriptor, indent=4)
     )
 
 
-def remove_images_already_transferred(
+def separate_images_to_transfer_and_images_to_skip(
     docker_images_to_transfer: list[str], docker_images_already_transferred: list[str]
-) -> Iterator[str]:
+) -> tuple[list[str], list[str]]:
+    docker_images_to_transfer_with_blobs = []
+    docker_images_to_skip = []
     for docker_image in docker_images_to_transfer:
         if docker_image not in docker_images_already_transferred:
-            yield docker_image
+            docker_images_to_transfer_with_blobs.append(docker_image)
         else:
             print(f"Skipping {docker_image} as it has already been transferred")
+            docker_images_to_skip.append(docker_image)
+    return docker_images_to_transfer_with_blobs, docker_images_to_skip
 
 
 def create_zip_from_docker_images(
@@ -104,7 +118,10 @@ def create_zip_from_docker_images(
     docker_images_already_transferred: list[str],
     zip_file: ZipFile,
 ) -> None:
-    docker_images_to_transfer = remove_images_already_transferred(
+    (
+        docker_images_to_transfer,
+        docker_images_to_skip,
+    ) = separate_images_to_transfer_and_images_to_skip(
         docker_images_to_transfer, docker_images_already_transferred
     )
     manifests, blobs_to_pull = get_manifests_and_list_of_all_blobs(
@@ -117,7 +134,9 @@ def create_zip_from_docker_images(
         dxf_base, zip_file, uniquify_blobs(blobs_to_pull), blobs_already_transferred
     )
     manifests_paths = add_manifests_to_zip(zip_file, manifests)
-    write_payload_descriptor_to_zip(zip_file, manifests, manifests_paths)
+    write_payload_descriptor_to_zip(
+        zip_file, manifests, manifests_paths, docker_images_to_skip
+    )
 
 
 def make_payload(
