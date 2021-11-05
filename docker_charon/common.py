@@ -41,11 +41,11 @@ class Manifest:
 
     @property
     def repository(self) -> str:
-        return self.docker_image_name.split(":", 1)[0]
+        return get_repo_and_tag(self.docker_image_name)[0]
 
     @property
     def tag(self) -> str:
-        return self.docker_image_name.split(":", 1)[1]
+        return get_repo_and_tag(self.docker_image_name)[1]
 
     @property
     def content(self) -> str:
@@ -82,3 +82,7 @@ def file_to_generator(file_like: IO) -> Iterator[bytes]:
 
 
 PROJECT_ROOT = Path(__file__).parents[1]
+
+
+def get_repo_and_tag(docker_image_name: str) -> (str, str):
+    return docker_image_name.split(":", 1)
