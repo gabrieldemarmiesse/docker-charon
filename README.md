@@ -100,7 +100,7 @@ It will iterate over the docker images and push the blobs and the manifests.
 - **password**: the password to use to connect to the registry. Optional
     if the registry does not require authentication.
 
-# Returns
+##### Returns
 
 The list of docker images loaded in the registry.
 
