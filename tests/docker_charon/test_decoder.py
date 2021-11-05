@@ -1,6 +1,7 @@
 from zipfile import ZipFile
 
 import pytest
+import requests
 from python_on_whales import docker
 
 import docker_charon
@@ -138,11 +139,11 @@ def test_image_skipped_is_still_declared_in_the_payload(tmp_path):
     images_pushed = push_payload_to_registry(
         "localhost:5001", payload_path, secure=False
     )
-    assert images_pushed == ["ubuntu:bionic-20180125", "ubuntu:augmented"]
+    assert set(images_pushed) == {"ubuntu:bionic-20180125", "ubuntu:augmented"}
 
 
 @pytest.mark.usefixtures("add_destination_registry")
-def test_raise_error_if_image_is_not_here(tmp_path):
+def test_raise_error_if_image_is_not_here_and_strict(tmp_path):
     payload_path = tmp_path / "payload.json"
     make_payload(
         "localhost:5000",
@@ -161,7 +162,7 @@ def test_raise_error_if_image_is_not_here(tmp_path):
 
 
 @pytest.mark.usefixtures("add_destination_registry")
-def test_raise_error_if_blob_is_not_here(tmp_path):
+def test_raise_error_if_blob_is_not_here_and_strict(tmp_path):
     payload_path = tmp_path / "payload.json"
     make_payload(
         "localhost:5000",
@@ -177,3 +178,41 @@ def test_raise_error_if_blob_is_not_here(tmp_path):
         )
 
     assert "ubuntu" in str(err.value)
+
+
+@pytest.mark.usefixtures("add_destination_registry")
+def test_warning_if_image_is_not_here(tmp_path):
+    payload_path = tmp_path / "payload.json"
+    make_payload(
+        "localhost:5000",
+        payload_path,
+        ["busybox:1.24.1", "ubuntu:augmented"],
+        docker_images_already_transferred=["ubuntu:augmented"],
+        secure=False,
+    )
+
+    with pytest.warns(UserWarning) as record:
+        push_payload_to_registry("localhost:5001", payload_path, secure=False)
+
+    assert "ubuntu:augmented" in str(record[0].message)
+
+
+@pytest.mark.usefixtures("add_destination_registry")
+def test_warning_if_blob_is_not_here(tmp_path):
+    payload_path = tmp_path / "payload.json"
+    make_payload(
+        "localhost:5000",
+        payload_path,
+        ["ubuntu:augmented"],
+        docker_images_already_transferred=["ubuntu:bionic-20180125"],
+        secure=False,
+    )
+
+    with pytest.warns(UserWarning) as record:
+        try:
+            push_payload_to_registry("localhost:5001", payload_path, secure=False)
+        except requests.HTTPError as e:
+            if e.response.status_code != 400:
+                raise
+
+    assert "ubuntu" in str(record[0].message)

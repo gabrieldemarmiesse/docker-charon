@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-import logging
+import warnings
 from pathlib import Path
 from typing import IO, Iterator, Optional, Union
 from zipfile import ZipFile
@@ -88,7 +88,7 @@ def make_sure_the_blob_exists(dxf_base: DXFBase, blob: Blob, strict: bool):
                 "set `strict=False`."
             )
         else:
-            logging.warning(error_message)
+            warnings.warn(error_message, UserWarning)
             return
     print(f"Skipping {blob} as it has already been pushed")
 
@@ -153,7 +153,7 @@ def check_if_the_docker_image_is_in_the_registry(
                 f"If you still want to unpack your payload, set `strict=False`."
             )
         else:
-            logging.warning(error_message)
+            warnings.warn(error_message, UserWarning)
             return
     print(f"Skipping {docker_image} as its already in the registry")
 
