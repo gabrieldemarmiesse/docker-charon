@@ -22,6 +22,7 @@ def initialize_local_registry():
         name="docker-charon-test-registry",
     )
     transfer_to_base_registry("ubuntu:bionic-20180125")
+    transfer_to_base_registry("busybox:1.24.1")
 
     docker.build(
         context_path=PROJECT_ROOT / "tests",

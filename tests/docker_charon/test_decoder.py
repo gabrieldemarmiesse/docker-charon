@@ -3,6 +3,7 @@ from zipfile import ZipFile
 import pytest
 from python_on_whales import docker
 
+import docker_charon
 from docker_charon import make_payload, push_payload_to_registry
 
 
@@ -138,3 +139,41 @@ def test_image_skipped_is_still_declared_in_the_payload(tmp_path):
         "localhost:5001", payload_path, secure=False
     )
     assert images_pushed == ["ubuntu:bionic-20180125", "ubuntu:augmented"]
+
+
+@pytest.mark.usefixtures("add_destination_registry")
+def test_raise_error_if_image_is_not_here(tmp_path):
+    payload_path = tmp_path / "payload.json"
+    make_payload(
+        "localhost:5000",
+        payload_path,
+        ["busybox:1.24.1", "ubuntu:augmented"],
+        docker_images_already_transferred=["ubuntu:augmented"],
+        secure=False,
+    )
+
+    with pytest.raises(docker_charon.ManifestNotFound) as err:
+        push_payload_to_registry(
+            "localhost:5001", payload_path, strict=True, secure=False
+        )
+
+    assert "ubuntu:augmented" in str(err.value)
+
+
+@pytest.mark.usefixtures("add_destination_registry")
+def test_raise_error_if_blob_is_not_here(tmp_path):
+    payload_path = tmp_path / "payload.json"
+    make_payload(
+        "localhost:5000",
+        payload_path,
+        ["ubuntu:augmented"],
+        docker_images_already_transferred=["ubuntu:bionic-20180125"],
+        secure=False,
+    )
+
+    with pytest.raises(docker_charon.BlobNotFound) as err:
+        push_payload_to_registry(
+            "localhost:5001", payload_path, strict=True, secure=False
+        )
+
+    assert "ubuntu" in str(err.value)
