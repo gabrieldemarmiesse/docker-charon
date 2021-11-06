@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import IO, Iterator, Optional, Union
 from zipfile import ZipFile
@@ -8,7 +7,15 @@ from zipfile import ZipFile
 from dxf import DXF, DXFBase
 from tqdm import tqdm
 
-from docker_charon.common import Blob, Manifest, PayloadSide, progress_as_string
+from docker_charon.common import (
+    Blob,
+    BlobLocationInRegistry,
+    BlobPathInZip,
+    Manifest,
+    PayloadDescriptor,
+    PayloadSide,
+    progress_as_string,
+)
 
 
 def add_blobs_to_zip(
@@ -16,38 +23,51 @@ def add_blobs_to_zip(
     zip_file: ZipFile,
     blobs_to_pull: list[Blob],
     blobs_already_transferred: list[Blob],
-) -> None:
-
+) -> dict[str, Union[BlobPathInZip, BlobLocationInRegistry]]:
+    blobs_paths = {}
     for blob_index, blob in enumerate(blobs_to_pull):
-        if blob in blobs_already_transferred:
+        print(progress_as_string(blob_index, blobs_to_pull), end=" ")
+        if blob.digest in blobs_paths:
+            print(f"Skipping {blob} because it's in {blobs_paths[blob.digest]}")
+            continue
+
+        if dest_blob := get_blob_with_same_digest(
+            blobs_already_transferred, blob.digest
+        ):
             print(
-                f"{progress_as_string(blob_index, blobs_to_pull)} Skipping {blob} because it's already transferred."
+                f"Skipping {blob} because it's already in the destination registry "
+                f"in the repository {dest_blob.repository}"
+            )
+            blobs_paths[blob.digest] = BlobLocationInRegistry(
+                repository=dest_blob.repository
             )
             continue
-        print(
-            f"{progress_as_string(blob_index, blobs_to_pull)} "
-            f"Pulling blob {blob} and storing it in the zip"
-        )
-        repository_dxf = DXF.from_base(dxf_base, blob.repository)
-        bytes_iterator, total_size = repository_dxf.pull_blob(blob.digest, size=True)
 
-        # we write the blob directly to the zip file
-        with tqdm(total=total_size, unit="B", unit_scale=True) as pbar:
-            with zip_file.open(
-                f"blobs/{blob.digest}", "w", force_zip64=True
-            ) as blob_in_zip:
-                for chunk in bytes_iterator:
-                    blob_in_zip.write(chunk)
-                    pbar.update(len(chunk))
+        # nominal case
+        print(f"Pulling blob {blob} and storing it in the zip")
+        blob_path_in_zip = download_blob_to_zip(dxf_base, blob, zip_file)
+        blobs_paths[blob.digest] = BlobPathInZip(zip_path=blob_path_in_zip)
+    return blobs_paths
 
 
-def add_manifests_to_zip(zip_file: ZipFile, manifests: list[Manifest]) -> Iterator[str]:
-    """Returns where the manifests have been stored in the zip"""
-    for manifest in manifests:
-        normalized_docker_image_name = manifest.docker_image_name.replace("/", "_")
-        manifest_zip_path = f"manifests/{normalized_docker_image_name}"
-        zip_file.writestr(manifest_zip_path, manifest.content)
-        yield manifest_zip_path
+def download_blob_to_zip(dxf_base: DXFBase, blob: Blob, zip_file: ZipFile):
+    repository_dxf = DXF.from_base(dxf_base, blob.repository)
+    bytes_iterator, total_size = repository_dxf.pull_blob(blob.digest, size=True)
+
+    # we write the blob directly to the zip file
+    with tqdm(total=total_size, unit="B", unit_scale=True) as pbar:
+        blob_path_in_zip = f"blobs/{blob.digest}"
+        with zip_file.open(blob_path_in_zip, "w", force_zip64=True) as blob_in_zip:
+            for chunk in bytes_iterator:
+                blob_in_zip.write(chunk)
+                pbar.update(len(chunk))
+    return blob_path_in_zip
+
+
+def get_blob_with_same_digest(list_of_blobs: list[Blob], digest: str) -> Optional[Blob]:
+    for blob in list_of_blobs:
+        if blob.digest == digest:
+            return blob
 
 
 def get_manifest_and_list_of_blobs_to_pull(
@@ -77,27 +97,6 @@ def uniquify_blobs(blobs: list[Blob]) -> list[Blob]:
     return result
 
 
-def write_payload_descriptor_to_zip(
-    zip_file: ZipFile,
-    manifests: list[Manifest],
-    manifests_paths: Iterator[str],
-    docker_images_to_skip: list[str],
-):
-    payload_descriptor = {}
-    for manifest, manifest_path in zip(manifests, manifests_paths):
-        payload_descriptor[manifest.docker_image_name] = manifest_path
-
-    # also want to add the docker images that we are skipping
-    # 1) So that in the air gapped system, the user knows what was needed for the payload
-    # 2) So that we can run checks on the decoder side and make sure the images actually
-    #    are in the registry.
-    for docker_image_to_skip in docker_images_to_skip:
-        payload_descriptor[docker_image_to_skip] = None
-    zip_file.writestr(
-        "payload_descriptor.json", json.dumps(payload_descriptor, indent=4)
-    )
-
-
 def separate_images_to_transfer_and_images_to_skip(
     docker_images_to_transfer: list[str], docker_images_already_transferred: list[str]
 ) -> tuple[list[str], list[str]]:
@@ -118,25 +117,24 @@ def create_zip_from_docker_images(
     docker_images_already_transferred: list[str],
     zip_file: ZipFile,
 ) -> None:
-    (
-        docker_images_to_transfer,
-        docker_images_to_skip,
-    ) = separate_images_to_transfer_and_images_to_skip(
+    payload_descriptor = PayloadDescriptor.from_images(
         docker_images_to_transfer, docker_images_already_transferred
     )
+
     manifests, blobs_to_pull = get_manifests_and_list_of_all_blobs(
-        dxf_base, docker_images_to_transfer
+        dxf_base, payload_descriptor.get_images_not_transferred_yet()
     )
     _, blobs_already_transferred = get_manifests_and_list_of_all_blobs(
         dxf_base, docker_images_already_transferred
     )
-    add_blobs_to_zip(
-        dxf_base, zip_file, uniquify_blobs(blobs_to_pull), blobs_already_transferred
+    payload_descriptor.blobs_paths = add_blobs_to_zip(
+        dxf_base, zip_file, blobs_to_pull, blobs_already_transferred
     )
-    manifests_paths = add_manifests_to_zip(zip_file, manifests)
-    write_payload_descriptor_to_zip(
-        zip_file, manifests, manifests_paths, docker_images_to_skip
-    )
+    for manifest in manifests:
+        dest = payload_descriptor.manifests_paths[manifest.docker_image_name]
+        zip_file.writestr(dest, manifest.content)
+
+    zip_file.writestr("payload_descriptor.json", payload_descriptor.json(indent=4))
 
 
 def make_payload(

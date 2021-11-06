@@ -170,3 +170,16 @@ def load_zip_images_in_registry(
                 dxf_base, zip_file, docker_image, manifest_path_in_zip, strict
             )
         yield docker_image
+
+
+def transfer_blob_between_two_repositories(blob: Blob, new_repository: str):
+    """This function could be replace by a blob mount but it's not yet
+    implemented by DXF.
+
+    We can always use this as a fallback if the registry doesn't allow blob mounting.
+    """
+    dxf_current_repository = DXF.from_base(blob.dxf_base, blob.repository)
+    bytes_generator, size = dxf_current_repository.pull_blob(blob.digest, size=True)
+
+    dxf_new_repository = DXF.from_base(blob.dxf_base, new_repository)
+    dxf_new_repository.push_blob(data=bytes_generator, digest=blob.digest)
