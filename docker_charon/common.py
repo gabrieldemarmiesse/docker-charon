@@ -71,7 +71,7 @@ class Manifest:
 
 
 class BlobPathInZip(BaseModel):
-    zip_path = str
+    zip_path: str
 
 
 class BlobLocationInRegistry(BaseModel):
@@ -100,7 +100,7 @@ class PayloadDescriptor(BaseModel):
         return cls(manifests_paths=manifests_paths, blobs_paths={})
 
     def get_images_not_transferred_yet(self) -> Iterator[str]:
-        for docker_image, manifest_path in self.manifests_paths:
+        for docker_image, manifest_path in self.manifests_paths.items():
             if manifest_path is not None:
                 yield docker_image
 

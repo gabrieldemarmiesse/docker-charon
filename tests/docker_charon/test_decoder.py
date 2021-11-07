@@ -1,7 +1,6 @@
 from zipfile import ZipFile
 
 import pytest
-import requests
 from python_on_whales import docker
 
 import docker_charon
@@ -162,25 +161,6 @@ def test_raise_error_if_image_is_not_here_and_strict(tmp_path):
 
 
 @pytest.mark.usefixtures("add_destination_registry")
-def test_raise_error_if_blob_is_not_here_and_strict(tmp_path):
-    payload_path = tmp_path / "payload.json"
-    make_payload(
-        "localhost:5000",
-        payload_path,
-        ["ubuntu:augmented"],
-        docker_images_already_transferred=["ubuntu:bionic-20180125"],
-        secure=False,
-    )
-
-    with pytest.raises(docker_charon.BlobNotFound) as err:
-        push_payload_to_registry(
-            "localhost:5001", payload_path, strict=True, secure=False
-        )
-
-    assert "ubuntu" in str(err.value)
-
-
-@pytest.mark.usefixtures("add_destination_registry")
 def test_warning_if_image_is_not_here(tmp_path):
     payload_path = tmp_path / "payload.json"
     make_payload(
@@ -198,21 +178,50 @@ def test_warning_if_image_is_not_here(tmp_path):
 
 
 @pytest.mark.usefixtures("add_destination_registry")
-def test_warning_if_blob_is_not_here(tmp_path):
+def test_mounting_layers_from_another_repository(tmp_path):
     payload_path = tmp_path / "payload.json"
+    make_payload(
+        "localhost:5000", payload_path, ["ubuntu:bionic-20180125"], secure=False
+    )
+
+    push_payload_to_registry("localhost:5001", payload_path, secure=False)
+
+    # the bionic image is now in the registry. We can make a payload for the
+    # augmented version, and it has a lot of layers in common
+    # we use another repository, when decoding, layers should be transfered from
+    # one repository to another
+    payload_path.unlink()
     make_payload(
         "localhost:5000",
         payload_path,
-        ["ubuntu:augmented"],
+        ["ubuntu-other:augmented"],
         docker_images_already_transferred=["ubuntu:bionic-20180125"],
         secure=False,
     )
 
-    with pytest.warns(UserWarning) as record:
-        try:
-            push_payload_to_registry("localhost:5001", payload_path, secure=False)
-        except requests.HTTPError as e:
-            if e.response.status_code != 400:
-                raise
+    # we make sure that only two blobs are in the zip: the image configuration
+    # and the layer that is common to both images
+    all_blobs = []
+    with ZipFile(payload_path) as zip_file:
+        for name in zip_file.namelist():
+            if name.startswith("blobs/"):
+                all_blobs.append(name)
+    assert len(all_blobs) == 2
 
-    assert "ubuntu" in str(record[0].message)
+    # we load the payload and make sure the augmented version is working
+    images_loaded = push_payload_to_registry(
+        "localhost:5001", payload_path, secure=False
+    )
+    assert images_loaded == ["ubuntu-other:augmented"]
+
+    docker.image.remove("localhost:5001/ubuntu:augmented", force=True)
+    docker.image.remove("localhost:5001/ubuntu-other:augmented", force=True)
+    docker.image.remove("localhost:5001/ubuntu:bionic-20180125", force=True)
+    assert (
+        docker.run(
+            "localhost:5001/ubuntu-other:augmented",
+            ["cat", "/hello-world.txt"],
+            remove=True,
+        )
+        == "hello-world"
+    )

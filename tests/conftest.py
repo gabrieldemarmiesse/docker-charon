@@ -27,7 +27,10 @@ def initialize_local_registry():
     docker.build(
         context_path=PROJECT_ROOT / "tests",
         file=PROJECT_ROOT / "tests" / "augmented-ubuntu.Dockerfile",
-        tags=["localhost:5000/ubuntu:augmented"],
+        tags=[
+            "localhost:5000/ubuntu:augmented",
+            "localhost:5000/ubuntu-other:augmented",
+        ],
         push=True,
     )
     yield
