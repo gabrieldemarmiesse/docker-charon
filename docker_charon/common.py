@@ -87,7 +87,7 @@ class PayloadDescriptor(BaseModel):
         cls,
         docker_images_to_transfer: list[str],
         docker_images_already_transferred: list[str],
-    ) -> PayloadDescriptor:
+    ):
         manifests_paths = {}
         for docker_image in docker_images_to_transfer:
             if docker_image in docker_images_already_transferred:
