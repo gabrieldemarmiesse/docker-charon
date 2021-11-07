@@ -11,7 +11,7 @@ def get_long_description() -> str:
 
 setup(
     name="docker-charon",
-    version="0.1.0",
+    version="0.2.0",
     description="A tool to move your Docker images to an air-gapped registry.",
     install_requires=(CURRENT_DIR / "requirements.txt").read_text().splitlines(),
     packages=find_packages(),
