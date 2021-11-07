@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import warnings
 from pathlib import Path
 from typing import IO, Iterator, Optional, Union
@@ -11,7 +10,10 @@ from dxf import DXF, DXFBase
 
 from docker_charon.common import (
     Blob,
+    BlobLocationInRegistry,
+    BlobPathInZip,
     Manifest,
+    PayloadDescriptor,
     PayloadSide,
     file_to_generator,
     get_repo_and_tag,
@@ -69,47 +71,28 @@ def push_payload_to_registry(
             return list(load_zip_images_in_registry(dxf_base, zip_file, strict))
 
 
-def make_sure_the_blob_exists(dxf_base: DXFBase, blob: Blob, strict: bool):
-    dxf = DXF.from_base(dxf_base, blob.repository)
-    try:
-        dxf.blob_size(blob.digest)
-    except requests.HTTPError as e:
-        if e.response.status_code != 404:
-            raise
-        error_message = (
-            f"The blob {blob.digest} needed for the image "
-            f"in {blob.repository} is missing in the registry. "
-            f"This likely means that you passed an {blob.repository} image "
-            f"in `docker_images_already_transferred` that wasn't in the air-gapped registry."
-        )
-        if strict:
-            raise BlobNotFound(
-                f"{error_message}\nTo unpack the payload, even with this issue, "
-                "set `strict=False`."
-            )
-        else:
-            warnings.warn(error_message, UserWarning)
-            return
-    print(f"Skipping {blob} as it has already been pushed")
-
-
 def push_all_blobs_from_manifest(
-    dxf_base: DXFBase, zip_file: ZipFile, manifest: Manifest, strict: bool
+    dxf_base: DXFBase,
+    zip_file: ZipFile,
+    manifest: Manifest,
+    blobs_paths: dict,
 ) -> None:
     list_of_blobs = manifest.get_list_of_blobs()
     for blob_index, blob in enumerate(list_of_blobs):
-        print(
-            f"{progress_as_string(blob_index, list_of_blobs)} " f"Pushing blob {blob}"
-        )
-        dxf = DXF.from_base(dxf_base, blob.repository)
+        print(progress_as_string(blob_index, list_of_blobs), end=" ")
 
-        # we try to open the file in the zip and push it. If the file doesn't
-        # exists in the zip, it means that it's already been pushed.
-        try:
-            with zip_file.open(f"blobs/{blob.digest}", "r") as blob_in_zip:
+        blob_path = blobs_paths[blob.digest]
+
+        if isinstance(blob_path, BlobPathInZip):
+            print(f"pushing blob {blob}")
+            dxf = DXF.from_base(dxf_base, blob.repository)
+            # we try to open the file in the zip and push it. If the file doesn't
+            # exists in the zip, it means that it's already been pushed.
+            with zip_file.open(blob_path.zip_path, "r") as blob_in_zip:
                 dxf.push_blob(data=file_to_generator(blob_in_zip), digest=blob.digest)
-        except KeyError:
-            make_sure_the_blob_exists(dxf_base, blob, strict=strict)
+        elif isinstance(blob_path, BlobLocationInRegistry):
+            blob_in_registry = Blob(dxf_base, blob.digest, blob_path.repository)
+            transfer_blob_between_two_repositories(blob_in_registry, blob.repository)
 
 
 def load_single_image_from_zip_in_registry(
@@ -117,14 +100,14 @@ def load_single_image_from_zip_in_registry(
     zip_file: ZipFile,
     docker_image: str,
     manifest_path_in_zip: str,
-    strict: bool,
+    blobs_paths: dict[str, Union[BlobPathInZip, BlobLocationInRegistry]],
 ) -> None:
     print(f"Loading image {docker_image}")
     manifest_content = zip_file.read(manifest_path_in_zip).decode()
     manifest = Manifest(
         dxf_base, docker_image, PayloadSide.DECODER, content=manifest_content
     )
-    push_all_blobs_from_manifest(dxf_base, zip_file, manifest, strict)
+    push_all_blobs_from_manifest(dxf_base, zip_file, manifest, blobs_paths)
     dxf = DXF.from_base(dxf_base, manifest.repository)
     dxf.set_manifest(manifest.tag, manifest.content)
 
@@ -161,12 +144,57 @@ def check_if_the_docker_image_is_in_the_registry(
 def load_zip_images_in_registry(
     dxf_base: DXFBase, zip_file: ZipFile, strict: bool
 ) -> Iterator[str]:
-    payload_descriptor = json.loads(zip_file.read("payload_descriptor.json").decode())
-    for docker_image, manifest_path_in_zip in payload_descriptor.items():
+    payload_descriptor = get_payload_descriptor(zip_file)
+    for (
+        docker_image,
+        manifest_path_in_zip,
+    ) in payload_descriptor.manifests_paths.items():
         if manifest_path_in_zip is None:
             check_if_the_docker_image_is_in_the_registry(dxf_base, docker_image, strict)
         else:
             load_single_image_from_zip_in_registry(
-                dxf_base, zip_file, docker_image, manifest_path_in_zip, strict
+                dxf_base,
+                zip_file,
+                docker_image,
+                manifest_path_in_zip,
+                payload_descriptor.blobs_paths,
             )
         yield docker_image
+
+
+def get_payload_descriptor(zip_file: ZipFile) -> PayloadDescriptor:
+    return PayloadDescriptor.parse_raw(
+        zip_file.read("payload_descriptor.json").decode()
+    )
+
+
+def transfer_blob_between_two_repositories(blob: Blob, new_repository: str):
+    """This function could be replace by a blob mount but it's not yet
+    implemented by DXF.
+
+    We can always use this as a fallback if the registry doesn't allow blob mounting.
+
+    If the source and destination are both the same repo, it's a no-op,
+    same if the blob is already at the right place.
+    """
+    dxf_current_repository = DXF.from_base(blob.dxf_base, blob.repository)
+    dxf_new_repository = DXF.from_base(blob.dxf_base, new_repository)
+
+    if blob_exist(dxf_new_repository, blob.digest):
+        print(f"Blob {blob} is already in the registry")
+        return
+
+    # transfer the blob
+    print(f"Mounting {blob} to {new_repository}")
+    bytes_generator = dxf_current_repository.pull_blob(blob.digest)
+    dxf_new_repository.push_blob(data=bytes_generator, digest=blob.digest)
+
+
+def blob_exist(dxf: DXF, digest: str) -> bool:
+    try:
+        dxf.blob_size(digest)
+    except requests.HTTPError as e:
+        if e.response.status_code != 404:
+            raise
+        return False
+    return True

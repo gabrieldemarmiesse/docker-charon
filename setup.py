@@ -17,5 +17,5 @@ setup(
     packages=find_packages(),
     include_package_data=True,  # will read the MANIFEST.in
     license="MIT",
-    python_requires=">=3.7, <4",
+    python_requires=">=3.8, <4",
 )

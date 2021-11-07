@@ -3,9 +3,10 @@ from __future__ import annotations
 import json
 from enum import Enum
 from pathlib import Path
-from typing import IO, Iterator, Optional
+from typing import IO, Dict, Iterator, Optional, Union
 
 from dxf import DXF, DXFBase
+from pydantic import BaseModel
 
 
 class PayloadSide(Enum):
@@ -67,6 +68,45 @@ class Manifest:
         for layer in manifest_dict["layers"]:
             result.append(Blob(self.dxf_base, layer["digest"], self.repository))
         return result
+
+
+class BlobPathInZip(BaseModel):
+    zip_path: str
+
+
+class BlobLocationInRegistry(BaseModel):
+    repository: str
+
+
+class PayloadDescriptor(BaseModel):
+    manifests_paths: Dict[str, Optional[str]]
+    blobs_paths: Dict[str, Union[BlobPathInZip, BlobLocationInRegistry]]
+
+    @classmethod
+    def from_images(
+        cls,
+        docker_images_to_transfer: list[str],
+        docker_images_already_transferred: list[str],
+    ) -> PayloadDescriptor:
+        manifests_paths = {}
+        for docker_image in docker_images_to_transfer:
+            if docker_image in docker_images_already_transferred:
+                print(f"Skipping {docker_image} as it has already been transferred")
+                manifests_paths[docker_image] = None
+            else:
+                manifests_paths[
+                    docker_image
+                ] = f"manifests/{normalize_name(docker_image)}"
+        return cls(manifests_paths=manifests_paths, blobs_paths={})
+
+    def get_images_not_transferred_yet(self) -> Iterator[str]:
+        for docker_image, manifest_path in self.manifests_paths.items():
+            if manifest_path is not None:
+                yield docker_image
+
+
+def normalize_name(docker_image: str) -> str:
+    return docker_image.replace("/", "_")
 
 
 def progress_as_string(index: int, container: list) -> str:
