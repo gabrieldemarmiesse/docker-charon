@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from enum import Enum
 from pathlib import Path
-from typing import IO, Iterator, Optional, Union
+from typing import IO, Dict, Iterator, Optional, Union
 
 from dxf import DXF, DXFBase
 from pydantic import BaseModel
@@ -79,15 +79,15 @@ class BlobLocationInRegistry(BaseModel):
 
 
 class PayloadDescriptor(BaseModel):
-    manifests_paths: dict[str, Optional[str]]
-    blobs_paths: dict[str, Union[BlobPathInZip, BlobLocationInRegistry]]
+    manifests_paths: Dict[str, Optional[str]]
+    blobs_paths: Dict[str, Union[BlobPathInZip, BlobLocationInRegistry]]
 
     @classmethod
     def from_images(
         cls,
         docker_images_to_transfer: list[str],
         docker_images_already_transferred: list[str],
-    ):
+    ) -> PayloadDescriptor:
         manifests_paths = {}
         for docker_image in docker_images_to_transfer:
             if docker_image in docker_images_already_transferred:
