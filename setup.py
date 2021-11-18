@@ -18,4 +18,7 @@ setup(
     include_package_data=True,  # will read the MANIFEST.in
     license="MIT",
     python_requires=">=3.8, <4",
+    entry_points={
+        "console_scripts": ["docker-charon=docker_charon.command_line_entrypoint:main"],
+    },
 )
