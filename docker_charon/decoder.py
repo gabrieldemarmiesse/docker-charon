@@ -29,7 +29,7 @@ class BlobNotFound(Exception):
     pass
 
 
-def push_payload_to_registry(
+def push_payload(
     registry: str,
     zip_file: Union[IO, Path, str],
     strict: bool = False,

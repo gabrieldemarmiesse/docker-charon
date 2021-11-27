@@ -1,5 +1,8 @@
 import json
+import subprocess
+import sys
 
+import pytest
 from dxf import DXFBase
 
 from docker_charon.encoder import (
@@ -60,10 +63,30 @@ def test_get_manifest_and_list_of_all_blobs():
     assert len(uniquify_blobs(blobs)) == len(blobs)
 
 
-def test_make_payload_from_path(tmp_path):
+@pytest.mark.parametrize("use_cli", [True, False])
+def test_make_payload_from_path(tmp_path, use_cli: bool):
     zip_path = tmp_path / "test.zip"
 
-    make_payload("localhost:5000", zip_path, ["ubuntu:bionic-20180125"], secure=False)
+    if use_cli:
+        # we use sys.executable -m to make sure we are running the right python
+        subprocess.check_call(
+            [
+                sys.executable,
+                "-m",
+                "docker_charon",
+                "make-payload",
+                "localhost:5000",
+                str(zip_path),
+                "ubuntu:bionic-20180125",
+                "--insecure",
+            ]
+        )
+    else:
+        make_payload(
+            "localhost:5000", zip_path, ["ubuntu:bionic-20180125"], secure=False
+        )
+    assert zip_path.exists()
+    assert zip_path.stat().st_size > 1024
 
 
 def test_make_payload_from_str(tmp_path):
@@ -72,9 +95,14 @@ def test_make_payload_from_str(tmp_path):
     make_payload(
         "localhost:5000", str(zip_path), ["ubuntu:bionic-20180125"], secure=False
     )
+    assert zip_path.exists()
+    assert zip_path.stat().st_size > 1024
 
 
 def test_make_payload_from_opened_file(tmp_path):
     zip_path = tmp_path / "test.zip"
     with open(zip_path, "wb") as f:
         make_payload("localhost:5000", f, ["ubuntu:bionic-20180125"], secure=False)
+
+    assert zip_path.exists()
+    assert zip_path.stat().st_size > 1024

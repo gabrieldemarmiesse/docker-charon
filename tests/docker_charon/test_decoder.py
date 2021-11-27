@@ -1,10 +1,12 @@
+import subprocess
+import sys
 from zipfile import ZipFile
 
 import pytest
 from python_on_whales import docker
 
 import docker_charon
-from docker_charon import make_payload, push_payload_to_registry
+from docker_charon import make_payload, push_payload
 
 
 @pytest.fixture
@@ -22,14 +24,12 @@ def add_destination_registry():
 
 @pytest.mark.usefixtures("add_destination_registry")
 def test_end_to_end_single_image(tmp_path):
-    payload_path = tmp_path / "payload.json"
+    payload_path = tmp_path / "payload.zip"
     make_payload(
         "localhost:5000", payload_path, ["ubuntu:bionic-20180125"], secure=False
     )
 
-    images_pushed = push_payload_to_registry(
-        "localhost:5001", payload_path, secure=False
-    )
+    images_pushed = push_payload("localhost:5001", payload_path, secure=False)
     assert images_pushed == ["ubuntu:bionic-20180125"]
 
     # we make sure the docker image exists in the registry and is working
@@ -40,17 +40,47 @@ def test_end_to_end_single_image(tmp_path):
     )
 
 
+@pytest.mark.parametrize("use_cli", [True, False])
 @pytest.mark.usefixtures("add_destination_registry")
-def test_end_to_end_multiple_images(tmp_path):
-    payload_path = tmp_path / "payload.json"
-    make_payload(
-        "localhost:5000",
-        payload_path,
-        ["ubuntu:bionic-20180125", "ubuntu:augmented"],
-        secure=False,
-    )
+def test_end_to_end_multiple_images(tmp_path, use_cli: bool):
+    payload_path = tmp_path / "payload.zip"
+    if use_cli:
+        subprocess.check_call(
+            [
+                sys.executable,
+                "-m",
+                "docker_charon",
+                "make-payload",
+                "localhost:5000",
+                str(payload_path),
+                "ubuntu:bionic-20180125,ubuntu:augmented",
+                "--insecure",
+            ],
+            stdout=sys.stderr,
+            stderr=sys.stderr,
+        )
+    else:
+        make_payload(
+            "localhost:5000",
+            payload_path,
+            ["ubuntu:bionic-20180125", "ubuntu:augmented"],
+            secure=False,
+        )
 
-    push_payload_to_registry("localhost:5001", payload_path, secure=False)
+    if use_cli:
+        subprocess.check_call(
+            [
+                sys.executable,
+                "-m",
+                "docker_charon",
+                "push-payload",
+                "localhost:5001",
+                str(payload_path),
+                "--insecure",
+            ]
+        )
+    else:
+        push_payload("localhost:5001", payload_path, secure=False)
 
     # we make sure the docker image exists in the registry and is working
     docker.image.remove("localhost:5001/ubuntu:bionic-20180125", force=True)
@@ -68,25 +98,43 @@ def test_end_to_end_multiple_images(tmp_path):
     )
 
 
+@pytest.mark.parametrize("use_cli", [True, False])
 @pytest.mark.usefixtures("add_destination_registry")
-def test_end_to_end_only_necessary_layers(tmp_path):
-    payload_path = tmp_path / "payload.json"
+def test_end_to_end_only_necessary_layers(tmp_path, use_cli: bool):
+    payload_path = tmp_path / "payload.zip"
     make_payload(
         "localhost:5000", payload_path, ["ubuntu:bionic-20180125"], secure=False
     )
 
-    push_payload_to_registry("localhost:5001", payload_path, secure=False)
+    push_payload("localhost:5001", payload_path, secure=False)
 
     # the bionic image is now in the registry. We can make a payload for the
     # augmented version, and it has a lot of layers in common
     payload_path.unlink()
-    make_payload(
-        "localhost:5000",
-        payload_path,
-        ["ubuntu:augmented"],
-        docker_images_already_transferred=["ubuntu:bionic-20180125"],
-        secure=False,
-    )
+    if use_cli:
+        subprocess.check_call(
+            [
+                sys.executable,
+                "-m",
+                "docker_charon",
+                "make-payload",
+                "--already-transferred=ubuntu:bionic-20180125",
+                "--insecure",
+                "localhost:5000",
+                str(payload_path),
+                "ubuntu:augmented",
+            ],
+            stdout=sys.stderr,
+            stderr=sys.stderr,
+        )
+    else:
+        make_payload(
+            "localhost:5000",
+            payload_path,
+            ["ubuntu:augmented"],
+            docker_images_already_transferred=["ubuntu:bionic-20180125"],
+            secure=False,
+        )
 
     # we make sure that only two blobs are in the zip: the image configuration
     # and the layer that is common to both images
@@ -98,9 +146,7 @@ def test_end_to_end_only_necessary_layers(tmp_path):
     assert len(all_blobs) == 2
 
     # we load the payload and make sure the augmented version is working
-    images_loaded = push_payload_to_registry(
-        "localhost:5001", payload_path, secure=False
-    )
+    images_loaded = push_payload("localhost:5001", payload_path, secure=False)
     assert images_loaded == ["ubuntu:augmented"]
 
     docker.image.remove("localhost:5001/ubuntu:augmented", force=True)
@@ -115,14 +161,12 @@ def test_end_to_end_only_necessary_layers(tmp_path):
 
 @pytest.mark.usefixtures("add_destination_registry")
 def test_image_skipped_is_still_declared_in_the_payload(tmp_path):
-    payload_path = tmp_path / "payload.json"
+    payload_path = tmp_path / "payload.zip"
     make_payload(
         "localhost:5000", payload_path, ["ubuntu:bionic-20180125"], secure=False
     )
 
-    images_pushed = push_payload_to_registry(
-        "localhost:5001", payload_path, secure=False
-    )
+    images_pushed = push_payload("localhost:5001", payload_path, secure=False)
     assert images_pushed == ["ubuntu:bionic-20180125"]
 
     payload_path.unlink()
@@ -135,15 +179,13 @@ def test_image_skipped_is_still_declared_in_the_payload(tmp_path):
         secure=False,
     )
 
-    images_pushed = push_payload_to_registry(
-        "localhost:5001", payload_path, secure=False
-    )
+    images_pushed = push_payload("localhost:5001", payload_path, secure=False)
     assert set(images_pushed) == {"ubuntu:bionic-20180125", "ubuntu:augmented"}
 
 
 @pytest.mark.usefixtures("add_destination_registry")
 def test_raise_error_if_image_is_not_here_and_strict(tmp_path):
-    payload_path = tmp_path / "payload.json"
+    payload_path = tmp_path / "payload.zip"
     make_payload(
         "localhost:5000",
         payload_path,
@@ -153,16 +195,14 @@ def test_raise_error_if_image_is_not_here_and_strict(tmp_path):
     )
 
     with pytest.raises(docker_charon.ManifestNotFound) as err:
-        push_payload_to_registry(
-            "localhost:5001", payload_path, strict=True, secure=False
-        )
+        push_payload("localhost:5001", payload_path, strict=True, secure=False)
 
     assert "ubuntu:augmented" in str(err.value)
 
 
 @pytest.mark.usefixtures("add_destination_registry")
 def test_warning_if_image_is_not_here(tmp_path):
-    payload_path = tmp_path / "payload.json"
+    payload_path = tmp_path / "payload.zip"
     make_payload(
         "localhost:5000",
         payload_path,
@@ -172,19 +212,19 @@ def test_warning_if_image_is_not_here(tmp_path):
     )
 
     with pytest.warns(UserWarning) as record:
-        push_payload_to_registry("localhost:5001", payload_path, secure=False)
+        push_payload("localhost:5001", payload_path, secure=False)
 
     assert "ubuntu:augmented" in str(record[0].message)
 
 
 @pytest.mark.usefixtures("add_destination_registry")
 def test_mounting_layers_from_another_repository(tmp_path):
-    payload_path = tmp_path / "payload.json"
+    payload_path = tmp_path / "payload.zip"
     make_payload(
         "localhost:5000", payload_path, ["ubuntu:bionic-20180125"], secure=False
     )
 
-    push_payload_to_registry("localhost:5001", payload_path, secure=False)
+    push_payload("localhost:5001", payload_path, secure=False)
 
     # the bionic image is now in the registry. We can make a payload for the
     # augmented version, and it has a lot of layers in common
@@ -209,9 +249,7 @@ def test_mounting_layers_from_another_repository(tmp_path):
     assert len(all_blobs) == 2
 
     # we load the payload and make sure the augmented version is working
-    images_loaded = push_payload_to_registry(
-        "localhost:5001", payload_path, secure=False
-    )
+    images_loaded = push_payload("localhost:5001", payload_path, secure=False)
     assert images_loaded == ["ubuntu-other:augmented"]
 
     docker.image.remove("localhost:5001/ubuntu:augmented", force=True)

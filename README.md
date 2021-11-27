@@ -22,6 +22,21 @@ pip install docker-charon
 
 ## Example
 
+
+#### Use as a command line
+
+```bash
+export DOCKER_CHARON_USERNAME=docker_username
+export DOCKER_CHARON_PASSWORD=docker_password
+docker-charon make-payload --already-transferred=my-image:1.4,my-other-image:1.3 86541248189.dkr.ecr.eu-west-2.amazonaws.com ./payload.zip my-image:1.8,my-other-image:1.5
+```
+
+```bash
+docker-charon push-payload --insecure localhost:5000 ./payload.zip
+```
+
+#### Use as a python script
+
 ```python
 from docker_charon import make_payload
 
@@ -36,9 +51,9 @@ make_payload(
 ```
 
 ```python
-from docker_charon import push_payload_to_registry
+from docker_charon import push_payload
 
-docker_images_transferred = push_payload_to_registry(
+docker_images_transferred = push_payload(
     "localhost:5000",
     "./payload.zip",
     secure=False
