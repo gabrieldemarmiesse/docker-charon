@@ -19,6 +19,6 @@ setup(
     license="MIT",
     python_requires=">=3.8, <4",
     entry_points={
-        "console_scripts": ["docker-charon=docker_charon.command_line_entrypoint:main"],
+        "console_scripts": ["docker-charon=docker_charon.__main__:main"],
     },
 )

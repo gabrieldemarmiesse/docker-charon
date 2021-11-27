@@ -22,6 +22,14 @@ pip install docker-charon
 
 ## Example
 
+
+#### Use as a command line
+
+```
+
+```
+
+
 ```python
 from docker_charon import make_payload
 
