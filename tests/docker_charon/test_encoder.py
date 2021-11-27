@@ -85,6 +85,8 @@ def test_make_payload_from_path(tmp_path, use_cli: bool):
         make_payload(
             "localhost:5000", zip_path, ["ubuntu:bionic-20180125"], secure=False
         )
+    assert zip_path.exists()
+    assert zip_path.stat().st_size > 1024
 
 
 def test_make_payload_from_str(tmp_path):
@@ -93,9 +95,14 @@ def test_make_payload_from_str(tmp_path):
     make_payload(
         "localhost:5000", str(zip_path), ["ubuntu:bionic-20180125"], secure=False
     )
+    assert zip_path.exists()
+    assert zip_path.stat().st_size > 1024
 
 
 def test_make_payload_from_opened_file(tmp_path):
     zip_path = tmp_path / "test.zip"
     with open(zip_path, "wb") as f:
         make_payload("localhost:5000", f, ["ubuntu:bionic-20180125"], secure=False)
+
+    assert zip_path.exists()
+    assert zip_path.stat().st_size > 1024

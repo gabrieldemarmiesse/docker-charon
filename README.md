@@ -44,9 +44,9 @@ make_payload(
 ```
 
 ```python
-from docker_charon import push_payload_to_registry
+from docker_charon import push_payload
 
-docker_images_transferred = push_payload_to_registry(
+docker_images_transferred = push_payload(
     "localhost:5000",
     "./payload.zip",
     secure=False

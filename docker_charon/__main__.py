@@ -29,8 +29,8 @@ def make_payload(
     ),
     secure: bool = typer.Option(
         True,
-        "--unsecure",
-        help="Use --unsecure if the registry uses http instead of https",
+        "--insecure",
+        help="Use --insecure if the registry uses http instead of https",
         show_default=False,
     ),
     username: Optional[str] = typer.Option(
@@ -82,8 +82,8 @@ def push_payload(
     strict: bool = False,
     secure: bool = typer.Option(
         True,
-        "--unsecure",
-        help="Use --unsecure if the registry uses http instead of https",
+        "--insecure",
+        help="Use --insecure if the registry uses http instead of https",
         show_default=False,
     ),
     username: Optional[str] = typer.Option(
@@ -108,7 +108,7 @@ def push_payload(
     username = username or os.environ.get(DOCKER_CHARON_USERNAME)
     password = password or os.environ.get(DOCKER_CHARON_PASSWORD)
 
-    images_pushed = docker_charon.push_payload_to_registry(
+    images_pushed = docker_charon.push_payload(
         registry, zip_file, strict, secure, username, password
     )
     sys.stderr.write("List of docker images pushed to the registry:\n")
@@ -118,3 +118,7 @@ def push_payload(
 
 def main():
     app()
+
+
+if __name__ == "__main__":
+    main()
