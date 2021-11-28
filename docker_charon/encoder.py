@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import IO, Iterator, Optional, Union
 from zipfile import ZipFile
@@ -26,9 +27,12 @@ def add_blobs_to_zip(
 ) -> dict[str, Union[BlobPathInZip, BlobLocationInRegistry]]:
     blobs_paths = {}
     for blob_index, blob in enumerate(blobs_to_pull):
-        print(progress_as_string(blob_index, blobs_to_pull), end=" ")
+        print(progress_as_string(blob_index, blobs_to_pull), end=" ", file=sys.stderr)
         if blob.digest in blobs_paths:
-            print(f"Skipping {blob} because it's in {blobs_paths[blob.digest]}")
+            print(
+                f"Skipping {blob} because it's in {blobs_paths[blob.digest]}",
+                file=sys.stderr,
+            )
             continue
 
         if dest_blob := get_blob_with_same_digest(
@@ -36,7 +40,8 @@ def add_blobs_to_zip(
         ):
             print(
                 f"Skipping {blob} because it's already in the destination registry "
-                f"in the repository {dest_blob.repository}"
+                f"in the repository {dest_blob.repository}",
+                file=sys.stderr,
             )
             blobs_paths[blob.digest] = BlobLocationInRegistry(
                 repository=dest_blob.repository
@@ -44,7 +49,7 @@ def add_blobs_to_zip(
             continue
 
         # nominal case
-        print(f"Pulling blob {blob} and storing it in the zip")
+        print(f"Pulling blob {blob} and storing it in the zip", file=sys.stderr)
         blob_path_in_zip = download_blob_to_zip(dxf_base, blob, zip_file)
         blobs_paths[blob.digest] = BlobPathInZip(zip_path=blob_path_in_zip)
     return blobs_paths
@@ -106,7 +111,10 @@ def separate_images_to_transfer_and_images_to_skip(
         if docker_image not in docker_images_already_transferred:
             docker_images_to_transfer_with_blobs.append(docker_image)
         else:
-            print(f"Skipping {docker_image} as it has already been transferred")
+            print(
+                f"Skipping {docker_image} as it has already been transferred",
+                file=sys.stderr,
+            )
             docker_images_to_skip.append(docker_image)
     return docker_images_to_transfer_with_blobs, docker_images_to_skip
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 import warnings
 from pathlib import Path
 from typing import IO, Iterator, Optional, Union
@@ -79,12 +80,12 @@ def push_all_blobs_from_manifest(
 ) -> None:
     list_of_blobs = manifest.get_list_of_blobs()
     for blob_index, blob in enumerate(list_of_blobs):
-        print(progress_as_string(blob_index, list_of_blobs), end=" ")
+        print(progress_as_string(blob_index, list_of_blobs), end=" ", file=sys.stderr)
 
         blob_path = blobs_paths[blob.digest]
 
         if isinstance(blob_path, BlobPathInZip):
-            print(f"pushing blob {blob}")
+            print(f"pushing blob {blob}", file=sys.stderr)
             dxf = DXF.from_base(dxf_base, blob.repository)
             # we try to open the file in the zip and push it. If the file doesn't
             # exists in the zip, it means that it's already been pushed.
@@ -102,7 +103,7 @@ def load_single_image_from_zip_in_registry(
     manifest_path_in_zip: str,
     blobs_paths: dict[str, Union[BlobPathInZip, BlobLocationInRegistry]],
 ) -> None:
-    print(f"Loading image {docker_image}")
+    print(f"Loading image {docker_image}", file=sys.stderr)
     manifest_content = zip_file.read(manifest_path_in_zip).decode()
     manifest = Manifest(
         dxf_base, docker_image, PayloadSide.DECODER, content=manifest_content
@@ -138,7 +139,7 @@ def check_if_the_docker_image_is_in_the_registry(
         else:
             warnings.warn(error_message, UserWarning)
             return
-    print(f"Skipping {docker_image} as its already in the registry")
+    print(f"Skipping {docker_image} as its already in the registry", file=sys.stderr)
 
 
 def load_zip_images_in_registry(
@@ -181,11 +182,11 @@ def transfer_blob_between_two_repositories(blob: Blob, new_repository: str):
     dxf_new_repository = DXF.from_base(blob.dxf_base, new_repository)
 
     if blob_exist(dxf_new_repository, blob.digest):
-        print(f"Blob {blob} is already in the registry")
+        print(f"Blob {blob} is already in the registry", file=sys.stderr)
         return
 
     # transfer the blob
-    print(f"Mounting {blob} to {new_repository}")
+    print(f"Mounting {blob} to {new_repository}", file=sys.stderr)
     bytes_generator = dxf_current_repository.pull_blob(blob.digest)
     dxf_new_repository.push_blob(data=bytes_generator, digest=blob.digest)
 

@@ -160,6 +160,68 @@ def test_end_to_end_only_necessary_layers(tmp_path, use_cli: bool):
 
 
 @pytest.mark.usefixtures("add_destination_registry")
+def test_end_to_end_only_necessary_layers_with_cli_and_stdin_stdout(tmp_path):
+    payload_path = tmp_path / "payload.zip"
+    subprocess.check_call(
+        [
+            "bash",
+            "-c",
+            f"{sys.executable} -m docker_charon make-payload localhost:5000 - ubuntu:bionic-20180125 --insecure > {payload_path}",
+        ]
+    )
+    images_pushed = subprocess.check_output(
+        [
+            "bash",
+            "-c",
+            f"{sys.executable} -m docker_charon push-payload localhost:5001 - --insecure < {payload_path}",
+        ]
+    )
+    assert images_pushed.decode() == "ubuntu:bionic-20180125\n"
+
+    # the bionic image is now in the registry. We can make a payload for the
+    # augmented version, and it has a lot of layers in common
+    payload_path.unlink()
+    subprocess.check_call(
+        [
+            "bash",
+            "-c",
+            (
+                f"{sys.executable} -m docker_charon make-payload --already-transferred=ubuntu:bionic-20180125 "
+                f"localhost:5000 - ubuntu:augmented --insecure > {payload_path}"
+            ),
+        ]
+    )
+
+    # we make sure that only two blobs are in the zip: the image configuration
+    # and the layer that is common to both images
+    all_blobs = []
+    with ZipFile(payload_path) as zip_file:
+        for name in zip_file.namelist():
+            if name.startswith("blobs/"):
+                all_blobs.append(name)
+    assert len(all_blobs) == 2
+
+    # we load the payload and make sure the augmented version is working
+    images_pushed = subprocess.check_output(
+        [
+            "bash",
+            "-c",
+            f"{sys.executable} -m docker_charon push-payload localhost:5001 - --insecure < {payload_path}",
+        ]
+    )
+    assert images_pushed.decode() == "ubuntu:augmented\n"
+
+    docker.image.remove("localhost:5001/ubuntu:augmented", force=True)
+    docker.image.remove("localhost:5001/ubuntu:bionic-20180125", force=True)
+    assert (
+        docker.run(
+            "localhost:5001/ubuntu:augmented", ["cat", "/hello-world.txt"], remove=True
+        )
+        == "hello-world"
+    )
+
+
+@pytest.mark.usefixtures("add_destination_registry")
 def test_image_skipped_is_still_declared_in_the_payload(tmp_path):
     payload_path = tmp_path / "payload.zip"
     make_payload(
