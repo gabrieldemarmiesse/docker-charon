@@ -122,6 +122,10 @@ def push_payload(
     """Unpack the payload (.zip file) into a docker registry.
 
     The zip file must have been created by 'docker-charon make-payload ...'
+
+    When specifying the zip file, you can use a relative path, an absolute path, or '-' for stdin.
+    This command will output to stdout the list of images that were transferred.
+    One image per line.
     """
     # the user may want for security to pass credentials to docker-charon with env
     # variables.
