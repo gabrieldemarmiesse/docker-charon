@@ -1,5 +1,6 @@
 import os
 import sys
+import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -16,7 +17,7 @@ app = typer.Typer()
 @app.command()
 def make_payload(
     registry: str,
-    zip_file: Path,
+    zip_file: str,
     docker_images_to_transfer: str = typer.Argument(
         ...,
         help="docker images to transfer, a commas delimited list of docker image names. "
@@ -52,6 +53,8 @@ def make_payload(
     By providing images that were already transferred to the new registry, you can reduce the size
     and creation time of the payload. This is because docker-charon only takes the layers
     that were not already transferred.
+
+    When specifying the zip file, you can use a relative path, an absolute path, or '-' for stdout.
     """
     docker_images_to_transfer = docker_images_to_transfer.strip().split(",")
     if already_transferred is None:
@@ -63,22 +66,39 @@ def make_payload(
     # variables.
     username = username or os.environ.get(DOCKER_CHARON_USERNAME)
     password = password or os.environ.get(DOCKER_CHARON_PASSWORD)
-
-    docker_charon.make_payload(
-        registry,
-        zip_file,
-        docker_images_to_transfer,
-        already_transferred,
-        secure,
-        username,
-        password,
-    )
+    if zip_file != "-":
+        docker_charon.make_payload(
+            registry,
+            zip_file,
+            docker_images_to_transfer,
+            already_transferred,
+            secure,
+            username,
+            password,
+        )
+    elif zip_file == "-":
+        # to avoid messing with unseekable streams, we need to write to a temp file
+        # and then copy it to stdout
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            temporary_file = Path(temporary_directory) / "payload.zip"
+            docker_charon.make_payload(
+                registry,
+                temporary_file,
+                docker_images_to_transfer,
+                already_transferred,
+                secure,
+                username,
+                password,
+            )
+            with open(temporary_file, "rb") as f:
+                while data := f.read(1024):
+                    sys.stdout.buffer.write(data)
 
 
 @app.command()
 def push_payload(
     registry: str,
-    zip_file: Path,
+    zip_file: str,
     strict: bool = False,
     secure: bool = typer.Option(
         True,
@@ -107,13 +127,33 @@ def push_payload(
     # variables.
     username = username or os.environ.get(DOCKER_CHARON_USERNAME)
     password = password or os.environ.get(DOCKER_CHARON_PASSWORD)
+    if zip_file != "-":
+        images_pushed = docker_charon.push_payload(
+            registry,
+            zip_file,
+            strict,
+            secure,
+            username,
+            password,
+        )
+    elif zip_file == "-":
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            temporary_file = Path(temporary_directory) / "payload.zip"
+            with open(temporary_file, "wb") as f:
+                while data := sys.stdin.buffer.read(1024):
+                    f.write(data)
+            images_pushed = docker_charon.push_payload(
+                registry,
+                temporary_file,
+                strict,
+                secure,
+                username,
+                password,
+            )
 
-    images_pushed = docker_charon.push_payload(
-        registry, zip_file, strict, secure, username, password
-    )
-    sys.stderr.write("List of docker images pushed to the registry:\n")
+    print("List of docker images pushed to the registry:", file=sys.stderr)
     for image in images_pushed:
-        sys.stdout.write(f"{image}\n")
+        print(image)
 
 
 def main():
