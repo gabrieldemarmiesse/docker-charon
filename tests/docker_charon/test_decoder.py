@@ -1,3 +1,5 @@
+import contextlib
+import os
 import subprocess
 import sys
 from zipfile import ZipFile
@@ -7,6 +9,7 @@ from python_on_whales import docker
 
 import docker_charon
 from docker_charon import make_payload, push_payload
+from docker_charon.common import PROJECT_ROOT
 
 
 @pytest.fixture
@@ -324,4 +327,26 @@ def test_mounting_layers_from_another_repository(tmp_path):
             remove=True,
         )
         == "hello-world"
+    )
+
+
+@contextlib.contextmanager
+def remember_cwd(new_directory):
+    curdir = os.getcwd()
+    os.chdir(new_directory)
+    try:
+        yield
+    finally:
+        os.chdir(curdir)
+
+
+def test_create_docker_image():
+    with remember_cwd(PROJECT_ROOT):
+        docker.buildx.bake(load=True)
+    docker.run("gabrieldemarmiesse/docker-charon:dev", ["--help"], remove=True)
+    docker.run(
+        "gabrieldemarmiesse/docker-charon:dev", ["make-payload", "--help"], remove=True
+    )
+    docker.run(
+        "gabrieldemarmiesse/docker-charon:dev", ["push-payload", "--help"], remove=True
     )
