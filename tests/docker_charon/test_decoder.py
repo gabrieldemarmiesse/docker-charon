@@ -43,6 +43,26 @@ def test_end_to_end_single_image(tmp_path):
     )
 
 
+@pytest.mark.usefixtures("add_destination_registry")
+def test_end_to_end_single_image_from_dockerhub(tmp_path):
+    payload_path = tmp_path / "payload.zip"
+    make_payload(
+        "registry-1.docker.io", payload_path, ["library/ubuntu:bionic-20180125"]
+    )
+
+    images_pushed = push_payload("localhost:5001", payload_path, secure=False)
+    assert images_pushed == ["library/ubuntu:bionic-20180125"]
+
+    # we make sure the docker image exists in the registry and is working
+    docker.image.remove("localhost:5001/library/ubuntu:bionic-20180125", force=True)
+    assert (
+        docker.run(
+            "localhost:5001/library/ubuntu:bionic-20180125", ["echo", "do"], remove=True
+        )
+        == "do"
+    )
+
+
 @pytest.mark.parametrize("use_cli", [True, False])
 @pytest.mark.usefixtures("add_destination_registry")
 def test_end_to_end_multiple_images(tmp_path, use_cli: bool):

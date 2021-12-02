@@ -9,6 +9,7 @@ from dxf import DXF, DXFBase
 from tqdm import tqdm
 
 from docker_charon.common import (
+    Authenticator,
     Blob,
     BlobLocationInRegistry,
     BlobPathInZip,
@@ -180,10 +181,11 @@ def make_payload(
         password: The password to use for authentication to the registry. Optional if
             the registry doesn't require authentication.
     """
-    with DXFBase(host=registry, insecure=not secure) as dxf_base:
-        if username is not None:
-            dxf_base.authenticate(username, password)
+    authenticator = Authenticator(username, password)
 
+    with DXFBase(
+        host=registry, auth=authenticator.auth, insecure=not secure
+    ) as dxf_base:
         with ZipFile(zip_file, "w") as zip_file:
             create_zip_from_docker_images(
                 dxf_base,
