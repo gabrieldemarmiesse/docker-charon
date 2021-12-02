@@ -10,6 +10,7 @@ import requests
 from dxf import DXF, DXFBase
 
 from docker_charon.common import (
+    Authenticator,
     Blob,
     BlobLocationInRegistry,
     BlobPathInZip,
@@ -65,9 +66,11 @@ def push_payload(
         In other words, it's the argument `docker_images_to_transfer` that you passed
         to the function `docker_charon.make_payload(...)`.
     """
-    with DXFBase(host=registry, insecure=not secure) as dxf_base:
-        if username is not None:
-            dxf_base.authenticate(username, password)
+    authenticator = Authenticator(username, password)
+
+    with DXFBase(
+        host=registry, auth=authenticator.auth, insecure=not secure
+    ) as dxf_base:
         with ZipFile(zip_file, "r") as zip_file:
             return list(load_zip_images_in_registry(dxf_base, zip_file, strict))
 

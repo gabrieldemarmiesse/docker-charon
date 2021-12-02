@@ -5,6 +5,7 @@ from enum import Enum
 from pathlib import Path
 from typing import IO, Dict, Iterator, Optional, Union
 
+import requests
 from dxf import DXF, DXFBase
 from pydantic import BaseModel
 
@@ -126,3 +127,12 @@ PROJECT_ROOT = Path(__file__).parents[1]
 
 def get_repo_and_tag(docker_image_name: str) -> (str, str):
     return docker_image_name.split(":", 1)
+
+
+class Authenticator:
+    def __init__(self, username: str, password: str):
+        self.username = username
+        self.password = password
+
+    def auth(self, dxf: DXFBase, response: requests.Response) -> None:
+        dxf.authenticate(self.username, self.password, response=response)
