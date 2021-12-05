@@ -186,10 +186,10 @@ def make_payload(
     with DXFBase(
         host=registry, auth=authenticator.auth, insecure=not secure
     ) as dxf_base:
-        with ZipFile(zip_file, "w") as zip_file:
+        with ZipFile(zip_file, "w") as zip_file_opened:
             create_zip_from_docker_images(
                 dxf_base,
                 docker_images_to_transfer,
                 docker_images_already_transferred,
-                zip_file,
+                zip_file_opened,
             )

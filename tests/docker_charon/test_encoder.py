@@ -1,4 +1,3 @@
-import filecmp
 import json
 import subprocess
 import sys
@@ -107,23 +106,3 @@ def test_make_payload_from_opened_file(tmp_path):
 
     assert zip_path.exists()
     assert zip_path.stat().st_size > 1024
-
-
-def test_stdout_make_payload(tmp_path):
-    test_with_cli = tmp_path / "test_with_cli.zip"
-    subprocess.check_call(
-        [
-            "bash",
-            "-c",
-            f"{sys.executable} -m docker_charon make-payload localhost:5000 - ubuntu:bionic-20180125 --insecure > {test_with_cli}",
-        ]
-    )
-
-    test_with_python = tmp_path / "test_with_python.zip"
-    make_payload(
-        "localhost:5000", test_with_python, ["ubuntu:bionic-20180125"], secure=False
-    )
-
-    assert test_with_cli.stat().st_size > 1024
-    assert test_with_cli.stat().st_size == test_with_python.stat().st_size
-    assert filecmp.cmp(test_with_cli, test_with_python)

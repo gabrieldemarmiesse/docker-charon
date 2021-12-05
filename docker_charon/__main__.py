@@ -66,33 +66,17 @@ def make_payload(
     # variables.
     username = username or os.environ.get(DOCKER_CHARON_USERNAME)
     password = password or os.environ.get(DOCKER_CHARON_PASSWORD)
-    if zip_file != "-":
-        docker_charon.make_payload(
-            registry,
-            zip_file,
-            docker_images_to_transfer,
-            already_transferred,
-            secure,
-            username,
-            password,
-        )
-    elif zip_file == "-":
-        # to avoid messing with unseekable streams, we need to write to a temp file
-        # and then copy it to stdout
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            temporary_file = Path(temporary_directory) / "payload.zip"
-            docker_charon.make_payload(
-                registry,
-                temporary_file,
-                docker_images_to_transfer,
-                already_transferred,
-                secure,
-                username,
-                password,
-            )
-            with open(temporary_file, "rb") as f:
-                while data := f.read(1024):
-                    sys.stdout.buffer.write(data)
+    if zip_file == "-":
+        zip_file = sys.stdout.buffer
+    docker_charon.make_payload(
+        registry,
+        zip_file,
+        docker_images_to_transfer,
+        already_transferred,
+        secure,
+        username,
+        password,
+    )
 
 
 @app.command()
