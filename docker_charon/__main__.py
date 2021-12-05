@@ -1,6 +1,7 @@
 import os
 import sys
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Optional
 
@@ -79,6 +80,24 @@ def make_payload(
     )
 
 
+@contextmanager
+def open_file_or_stdin(file_path: str):
+    if file_path == "-":
+        # we need to read the zip file from stdin
+        # since the central directory is at the end of the file
+        # we need to store the stream in a temporary file
+        # buffering would be useless here
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            temporary_file = Path(temporary_directory) / "payload.zip"
+            with open(temporary_file, "ab+") as f:
+                while data := sys.stdin.buffer.read(1024):
+                    f.write(data)
+                f.seek(0)
+                yield f
+    else:
+        yield file_path
+
+
 @app.command()
 def push_payload(
     registry: str,
@@ -115,30 +134,15 @@ def push_payload(
     # variables.
     username = username or os.environ.get(DOCKER_CHARON_USERNAME)
     password = password or os.environ.get(DOCKER_CHARON_PASSWORD)
-    if zip_file != "-":
+    with open_file_or_stdin(zip_file) as f:
         images_pushed = docker_charon.push_payload(
             registry,
-            zip_file,
+            f,
             strict,
             secure,
             username,
             password,
         )
-    elif zip_file == "-":
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            temporary_file = Path(temporary_directory) / "payload.zip"
-            with open(temporary_file, "wb") as f:
-                while data := sys.stdin.buffer.read(1024):
-                    f.write(data)
-            images_pushed = docker_charon.push_payload(
-                registry,
-                temporary_file,
-                strict,
-                secure,
-                username,
-                password,
-            )
-
     print("List of docker images pushed to the registry:", file=sys.stderr)
     for image in images_pushed:
         print(image)

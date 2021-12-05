@@ -98,7 +98,7 @@ def test_end_to_end_multiple_images(tmp_path, method: str):
             secure=False,
         )
 
-    if method in ("with_cli_normal", "with_cli_stdout"):
+    if method == "with_cli_normal":
         subprocess.check_call(
             [
                 sys.executable,
@@ -109,6 +109,14 @@ def test_end_to_end_multiple_images(tmp_path, method: str):
                 str(payload_path),
                 "--insecure",
             ]
+        )
+    elif method == "with_cli_stdout":
+        subprocess.check_call(
+            [
+                "bash",
+                "-c",
+                f"{sys.executable} -m docker_charon push-payload localhost:5001 - --insecure < {payload_path}",
+            ],
         )
     else:
         push_payload("localhost:5001", payload_path, secure=False)
