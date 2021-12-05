@@ -63,11 +63,11 @@ def test_end_to_end_single_image_from_dockerhub(tmp_path):
     )
 
 
-@pytest.mark.parametrize("use_cli", [True, False])
+@pytest.mark.parametrize("method", ["direct", "with_cli_normal", "with_cli_stdout"])
 @pytest.mark.usefixtures("add_destination_registry")
-def test_end_to_end_multiple_images(tmp_path, use_cli: bool):
+def test_end_to_end_multiple_images(tmp_path, method: str):
     payload_path = tmp_path / "payload.zip"
-    if use_cli:
+    if method == "with_cli_normal":
         subprocess.check_call(
             [
                 sys.executable,
@@ -82,6 +82,14 @@ def test_end_to_end_multiple_images(tmp_path, use_cli: bool):
             stdout=sys.stderr,
             stderr=sys.stderr,
         )
+    elif method == "with_cli_stdout":
+        subprocess.check_call(
+            [
+                "bash",
+                "-c",
+                f"{sys.executable} -m docker_charon make-payload localhost:5000 - ubuntu:bionic-20180125,ubuntu:augmented --insecure > {payload_path}",
+            ],
+        )
     else:
         make_payload(
             "localhost:5000",
@@ -90,7 +98,7 @@ def test_end_to_end_multiple_images(tmp_path, use_cli: bool):
             secure=False,
         )
 
-    if use_cli:
+    if method == "with_cli_normal":
         subprocess.check_call(
             [
                 sys.executable,
@@ -101,6 +109,14 @@ def test_end_to_end_multiple_images(tmp_path, use_cli: bool):
                 str(payload_path),
                 "--insecure",
             ]
+        )
+    elif method == "with_cli_stdout":
+        subprocess.check_call(
+            [
+                "bash",
+                "-c",
+                f"{sys.executable} -m docker_charon push-payload localhost:5001 - --insecure < {payload_path}",
+            ],
         )
     else:
         push_payload("localhost:5001", payload_path, secure=False)
