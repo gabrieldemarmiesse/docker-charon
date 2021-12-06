@@ -2,6 +2,8 @@ import contextlib
 import os
 import subprocess
 import sys
+from contextlib import contextmanager
+from pathlib import Path
 from zipfile import ZipFile
 
 import pytest
@@ -64,7 +66,34 @@ def test_end_to_end_single_image_from_dockerhub(tmp_path):
     )
 
 
-@pytest.mark.parametrize("method", ["direct", "with_cli_normal", "with_cli_stdout"])
+@contextmanager
+def set_directory(path: Path):
+    """Sets the cwd within the context
+
+    Args:
+        path (Path): The path to the cwd
+
+    Yields:
+        None
+    """
+
+    origin = Path().absolute()
+    try:
+        os.chdir(path)
+        yield
+    finally:
+        os.chdir(origin)
+
+
+def build_dev_image():
+    with set_directory(PROJECT_ROOT):
+        baked_output = docker.buildx.bake(load=True)
+    return list(baked_output["target"].values())[0]["tags"][0]
+
+
+@pytest.mark.parametrize(
+    "method", ["direct", "with_cli_normal", "with_cli_stdout", "with_docker_image"]
+)
 @pytest.mark.usefixtures("add_destination_registry")
 def test_end_to_end_multiple_images(tmp_path, method: str):
     payload_path = tmp_path / "payload.zip"
@@ -90,7 +119,17 @@ def test_end_to_end_multiple_images(tmp_path, method: str):
             [
                 "bash",
                 "-c",
-                f"{sys.executable} -m docker_charon make-payload -r localhost:5000 --insecure ubuntu:bionic-20180125,ubuntu:augmented > {payload_path}",
+                f"{sys.executable} -m docker_charon make-payload -r localhost:5000 "
+                f"--insecure ubuntu:bionic-20180125,ubuntu:augmented > {payload_path}",
+            ],
+        )
+    elif method == "with_docker_image":
+        subprocess.check_call(
+            [
+                "bash",
+                "-c",
+                f"docker run --net=host {build_dev_image()} make-payload -r localhost:5000 "
+                f"--insecure ubuntu:bionic-20180125,ubuntu:augmented > {payload_path}",
             ],
         )
     else:
@@ -119,6 +158,14 @@ def test_end_to_end_multiple_images(tmp_path, method: str):
                 "bash",
                 "-c",
                 f"{sys.executable} -m docker_charon push-payload -r localhost:5001 --insecure < {payload_path}",
+            ],
+        )
+    elif method == "with_docker_image":
+        subprocess.check_call(
+            [
+                "bash",
+                "-c",
+                f"docker run -i --net=host {build_dev_image()} push-payload -r localhost:5001 --insecure < {payload_path}",
             ],
         )
     else:
