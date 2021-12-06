@@ -32,9 +32,9 @@ class BlobNotFound(Exception):
 
 
 def push_payload(
-    registry: str,
     zip_file: Union[IO, Path, str],
     strict: bool = False,
+    registry: str = "registry-1.docker.io",
     secure: bool = True,
     username: Optional[str] = None,
     password: Optional[str] = None,

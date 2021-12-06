@@ -147,10 +147,10 @@ def create_zip_from_docker_images(
 
 
 def make_payload(
-    registry: str,
     zip_file: Union[IO, Path, str],
     docker_images_to_transfer: list[str],
     docker_images_already_transferred: list[str] = [],
+    registry: str = "registry-1.docker.io",
     secure: bool = True,
     username: Optional[str] = None,
     password: Optional[str] = None,
