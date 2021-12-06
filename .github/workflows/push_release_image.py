@@ -16,3 +16,7 @@ def main():
         password=os.environ["DOCKERHUB_PASSWORD"],
     )
     docker.buildx.bake(["deploy-image"], push=True, variables={"TAG": version})
+
+
+if __name__ == "__main__":
+    main()

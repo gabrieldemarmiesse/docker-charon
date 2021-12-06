@@ -22,4 +22,4 @@ jobs:
         DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
       run: |
-        python .github/workflows/docker-publish.py
+        python .github/workflows/push_release_image.py
