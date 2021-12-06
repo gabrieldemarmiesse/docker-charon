@@ -17,8 +17,6 @@ app = typer.Typer()
 
 @app.command()
 def make_payload(
-    registry: str,
-    zip_file: str,
     docker_images_to_transfer: str = typer.Argument(
         ...,
         help="docker images to transfer, a commas delimited list of docker image names. "
@@ -26,23 +24,44 @@ def make_payload(
     ),
     already_transferred: Optional[str] = typer.Option(
         None,
+        "--already-transferred",
+        "-a",
         help="docker images already present in the remote registry, "
         "a commas delimited list of docker image names. Do not include the registry name.",
+    ),
+    file: Optional[str] = typer.Option(
+        None,
+        "--file",
+        "-f",
+        help="Where to write the payload zip file. "
+        "If this is not provided, the payload will be written to stdout.",
+    ),
+    registry: str = typer.Option(
+        "registry-1.docker.io",
+        "--registry",
+        "-r",
+        show_default=False,
+        help="The registry to push the payload to. It defaults to dockerhub (registry-1.docker.io)",
     ),
     secure: bool = typer.Option(
         True,
         "--insecure",
+        "-i",
         help="Use --insecure if the registry uses http instead of https",
         show_default=False,
     ),
     username: Optional[str] = typer.Option(
         None,
+        "--username",
+        "-u",
         help=f"The username to use to connect to the registry. If you want more "
         f"security and don't want your username to appear in your shell "
         f"history, you can also use the environment variable {DOCKER_CHARON_USERNAME}",
     ),
     password: Optional[str] = typer.Option(
         None,
+        "--password",
+        "-p",
         help=f"The password to use to connect to the registry. If you want more "
         f"security and don't want your password to appear in your shell "
         f"history, you can also use the environment variable {DOCKER_CHARON_PASSWORD}",
@@ -54,8 +73,6 @@ def make_payload(
     By providing images that were already transferred to the new registry, you can reduce the size
     and creation time of the payload. This is because docker-charon only takes the layers
     that were not already transferred.
-
-    When specifying the zip file, you can use a relative path, an absolute path, or '-' for stdout.
     """
     docker_images_to_transfer = docker_images_to_transfer.strip().split(",")
     if already_transferred is None:
@@ -67,13 +84,13 @@ def make_payload(
     # variables.
     username = username or os.environ.get(DOCKER_CHARON_USERNAME)
     password = password or os.environ.get(DOCKER_CHARON_PASSWORD)
-    if zip_file == "-":
-        zip_file = sys.stdout.buffer
+    if file is None:
+        file = sys.stdout.buffer
     docker_charon.make_payload(
-        registry,
-        zip_file,
+        file,
         docker_images_to_transfer,
         already_transferred,
+        registry,
         secure,
         username,
         password,
@@ -81,8 +98,8 @@ def make_payload(
 
 
 @contextmanager
-def open_file_or_stdin(file_path: str):
-    if file_path == "-":
+def open_file_or_stdin(file_path: Optional[str]):
+    if file_path is None:
         # we need to read the zip file from stdin
         # since the central directory is at the end of the file
         # we need to store the stream in a temporary file
@@ -100,23 +117,44 @@ def open_file_or_stdin(file_path: str):
 
 @app.command()
 def push_payload(
-    registry: str,
-    zip_file: str,
-    strict: bool = False,
+    file: Optional[str] = typer.Option(
+        None,
+        "--file",
+        "-f",
+        help="The payload zip file. If this is not provided, the payload will be read from stdin.",
+    ),
+    strict: bool = typer.Option(
+        False,
+        "--strict",
+        "-s",
+        help="Fails if there is a mismatch between what was given with --already-transferred "
+        "and what is in the registry.",
+    ),
+    registry: str = typer.Option(
+        "registry-1.docker.io",
+        "--registry",
+        "-r",
+        help="The registry to push the payload to. It defaults to dockerhub (registry-1.docker.io)",
+    ),
     secure: bool = typer.Option(
         True,
         "--insecure",
+        "-i",
         help="Use --insecure if the registry uses http instead of https",
         show_default=False,
     ),
     username: Optional[str] = typer.Option(
         None,
+        "--username",
+        "-u",
         help=f"The username to use to connect to the registry. If you want more "
         f"security and don't want your username to appear in your shell "
         f"history, you can also use the environment variable {DOCKER_CHARON_USERNAME}",
     ),
     password: Optional[str] = typer.Option(
         None,
+        "--password",
+        "-p",
         help=f"The password to use to connect to the registry. If you want more "
         f"security and don't want your password to appear in your shell "
         f"history, you can also use the environment variable {DOCKER_CHARON_PASSWORD}",
@@ -134,11 +172,11 @@ def push_payload(
     # variables.
     username = username or os.environ.get(DOCKER_CHARON_USERNAME)
     password = password or os.environ.get(DOCKER_CHARON_PASSWORD)
-    with open_file_or_stdin(zip_file) as f:
+    with open_file_or_stdin(file) as f:
         images_pushed = docker_charon.push_payload(
-            registry,
             f,
             strict,
+            registry,
             secure,
             username,
             password,
