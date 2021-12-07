@@ -44,7 +44,6 @@ def push_payload(
     It will iterate over the docker images and push the blobs and the manifests.
 
     # Arguments
-        registry: the registry to push to.
         zip_file: the zip file containing the payload. It can be a `pathlib.Path`, a `str`
             or a file-like object.
         strict: `False` by default. If True, it will raise an error if the
@@ -52,6 +51,7 @@ def push_payload(
             That can happen if the user
             set an image in `docker_images_already_transferred`
             that is not in the registry.
+        registry: the registry to push to. It defaults to `registry-1.docker.io` (dockerhub).
         secure: whether to use TLS (HTTPS) or not to connect to the registry,
             default is True.
         username: the username to use to connect to the registry. Optional

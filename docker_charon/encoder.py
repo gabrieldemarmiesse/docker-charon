@@ -163,9 +163,6 @@ def make_payload(
     If you are interested in multi-registries, please open an issue.
 
     # Arguments
-        registry: The registry to pull the images from. The name of the registry
-            must not be included in `docker_images_to_transfer` and
-            `docker_images_already_transferred`.
         zip_file: The path to the zip file to create. It can be a `pathlib.Path` or
             a `str`. It's also possible to pass a file-like object. The payload with
             all the docker images is a single zip file.
@@ -174,6 +171,7 @@ def make_payload(
         docker_images_already_transferred: The list of docker images that have already
             been transferred to the air-gapped registry. Do not include the registry
             name in the image name.
+        registry: the registry to push to. It defaults to `registry-1.docker.io` (dockerhub).
         secure: Set to `False` if the registry doesn't support HTTPS (TLS). Default
             is `True`.
         username: The username to use for authentication to the registry. Optional if
