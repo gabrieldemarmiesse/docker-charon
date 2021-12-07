@@ -73,6 +73,9 @@ def make_payload(
     By providing images that were already transferred to the new registry, you can reduce the size
     and creation time of the payload. This is because docker-charon only takes the layers
     that were not already transferred.
+
+    The payload is written to stdout by default. You can provide a file path to write the payload to
+    by using the --file (or -f) option.
     """
     docker_images_to_transfer = docker_images_to_transfer.strip().split(",")
     if already_transferred is None:
@@ -164,9 +167,11 @@ def push_payload(
 
     The zip file must have been created by 'docker-charon make-payload ...'
 
-    When specifying the zip file, you can use a relative path, an absolute path, or '-' for stdin.
     This command will output to stdout the list of images that were transferred.
     One image per line.
+
+    By default, the payload is read from stdin. You can provide a file path to read the payload from
+    by using the --file (or -f) option.
     """
     # the user may want for security to pass credentials to docker-charon with env
     # variables.
