@@ -96,7 +96,9 @@ def push_all_blobs_from_manifest(
                 dxf.push_blob(data=file_to_generator(blob_in_zip), digest=blob.digest)
         elif isinstance(blob_path, BlobLocationInRegistry):
             blob_in_registry = Blob(dxf_base, blob.digest, blob_path.repository)
-            transfer_blob_between_two_repositories(blob_in_registry, blob.repository)
+            dxf = DXF.from_base(dxf_base, blob.repository)
+            print(f"Mounting {blob_in_registry} to {blob.repository}", file=sys.stderr)
+            dxf.mount_blob(blob_in_registry.repository, blob_in_registry.digest)
 
 
 def load_single_image_from_zip_in_registry(
@@ -170,35 +172,3 @@ def get_payload_descriptor(zip_file: ZipFile) -> PayloadDescriptor:
     return PayloadDescriptor.parse_raw(
         zip_file.read("payload_descriptor.json").decode()
     )
-
-
-def transfer_blob_between_two_repositories(blob: Blob, new_repository: str):
-    """This function could be replace by a blob mount but it's not yet
-    implemented by DXF.
-
-    We can always use this as a fallback if the registry doesn't allow blob mounting.
-
-    If the source and destination are both the same repo, it's a no-op,
-    same if the blob is already at the right place.
-    """
-    dxf_current_repository = DXF.from_base(blob.dxf_base, blob.repository)
-    dxf_new_repository = DXF.from_base(blob.dxf_base, new_repository)
-
-    if blob_exist(dxf_new_repository, blob.digest):
-        print(f"Blob {blob} is already in the registry", file=sys.stderr)
-        return
-
-    # transfer the blob
-    print(f"Mounting {blob} to {new_repository}", file=sys.stderr)
-    bytes_generator = dxf_current_repository.pull_blob(blob.digest)
-    dxf_new_repository.push_blob(data=bytes_generator, digest=blob.digest)
-
-
-def blob_exist(dxf: DXF, digest: str) -> bool:
-    try:
-        dxf.blob_size(digest)
-    except requests.HTTPError as e:
-        if e.response.status_code != 404:
-            raise
-        return False
-    return True
