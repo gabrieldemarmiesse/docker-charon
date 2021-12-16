@@ -1,4 +1,4 @@
-python-dxf
+python-dxf==7.8.0
 tqdm
 typer
 pydantic
