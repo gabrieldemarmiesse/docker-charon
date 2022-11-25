@@ -1,0 +1,29 @@
+# This workflows will upload the cli as a pyinstaller executable to github releases' assets.
+# For more information on pyinstaller: https://pyinstaller.org/en/stable/
+
+name: Upload a pyinstaller executable to github releases' assets
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'
+    - name: Install dependencies
+      run: |
+        pip install python-on-whales==0.32.0
+    - name: Build
+      run: |
+        python .github/workflows/pyinstaller_bundle.py
+    - name: Publish asset
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          dist/linux/docker-charon
