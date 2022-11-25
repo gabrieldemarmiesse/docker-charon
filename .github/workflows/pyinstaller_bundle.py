@@ -14,7 +14,7 @@ def main():
         "fydeinc/pyinstaller",
         ["docker_charon/__main__.py", "-n", "docker-charon"],
         volumes=[(repo_absolute_path(), "/src")],
-        envs={"PLATFORMS": "linux"}
+        envs={"PLATFORMS": "linux"},
     )
 
 
