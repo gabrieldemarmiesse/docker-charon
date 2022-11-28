@@ -116,7 +116,7 @@ def progress_as_string(index: int, container: list) -> str:
 
 def file_to_generator(file_like: IO) -> Iterator[bytes]:
     while True:
-        chunk = file_like.read(2 ** 15)
+        chunk = file_like.read(2**15)
         if not chunk:
             break
         yield chunk
