@@ -1,5 +1,5 @@
 pytest==6.2.5
 python-on-whales==0.29.0
-black==20.8b1
+black==22.10
 flake8==3.8.4
 isort==5.7.0
