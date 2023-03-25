@@ -13,6 +13,8 @@ setup(
     name="docker-charon",
     version=(CURRENT_DIR / "VERSION.txt").read_text(encoding="utf8").strip(),
     description="A tool to move your Docker images to an air-gapped registry.",
+    long_description=get_long_description(),
+    long_description_content_type="text/markdown",
     install_requires=(CURRENT_DIR / "requirements.txt").read_text().splitlines(),
     packages=find_packages(),
     include_package_data=True,  # will read the MANIFEST.in
