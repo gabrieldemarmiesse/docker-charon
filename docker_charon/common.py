@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import json
 from enum import Enum
+from importlib.metadata import version
 from pathlib import Path
 from typing import IO, Dict, Iterator, Optional, Union
 
 import requests
 from dxf import DXF, DXFBase
 from pydantic import BaseModel
+
+PYDANTIC_V2 = version("pydantic").startswith("2.")
 
 
 class PayloadSide(Enum):
