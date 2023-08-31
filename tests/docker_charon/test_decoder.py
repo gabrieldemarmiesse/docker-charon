@@ -10,8 +10,9 @@ import pytest
 from python_on_whales import docker
 
 import docker_charon
-from docker_charon import make_payload, push_payload
 from docker_charon.common import PROJECT_ROOT
+from docker_charon.decoder import push_payload
+from docker_charon.encoder import make_payload
 
 
 @pytest.fixture
