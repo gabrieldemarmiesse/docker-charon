@@ -9,6 +9,7 @@ from dxf import DXF, DXFBase
 from tqdm import tqdm
 
 from docker_charon.common import (
+    PYDANTIC_V2,
     Authenticator,
     Blob,
     BlobLocationInRegistry,
@@ -17,7 +18,6 @@ from docker_charon.common import (
     PayloadDescriptor,
     PayloadSide,
     progress_as_string,
-    PYDANTIC_V2,
 )
 
 

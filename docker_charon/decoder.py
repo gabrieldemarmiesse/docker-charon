@@ -10,6 +10,7 @@ import requests
 from dxf import DXF, DXFBase
 
 from docker_charon.common import (
+    PYDANTIC_V2,
     Authenticator,
     Blob,
     BlobLocationInRegistry,
@@ -20,7 +21,6 @@ from docker_charon.common import (
     file_to_generator,
     get_repo_and_tag,
     progress_as_string,
-    PYDANTIC_V2,
 )
 
 
