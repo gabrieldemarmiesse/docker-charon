@@ -20,6 +20,7 @@ from docker_charon.common import (
     file_to_generator,
     get_repo_and_tag,
     progress_as_string,
+    PYDANTIC_V2,
 )
 
 
@@ -169,6 +170,11 @@ def load_zip_images_in_registry(
 
 
 def get_payload_descriptor(zip_file: ZipFile) -> PayloadDescriptor:
-    return PayloadDescriptor.parse_raw(
-        zip_file.read("payload_descriptor.json").decode()
-    )
+    if PYDANTIC_V2:
+        return PayloadDescriptor.model_validate_json(
+            zip_file.read("payload_descriptor.json").decode()
+        )
+    else:
+        return PayloadDescriptor.parse_raw(
+            zip_file.read("payload_descriptor.json").decode()
+        )

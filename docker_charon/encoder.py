@@ -17,6 +17,7 @@ from docker_charon.common import (
     PayloadDescriptor,
     PayloadSide,
     progress_as_string,
+    PYDANTIC_V2,
 )
 
 
@@ -142,8 +143,11 @@ def create_zip_from_docker_images(
     for manifest in manifests:
         dest = payload_descriptor.manifests_paths[manifest.docker_image_name]
         zip_file.writestr(dest, manifest.content)
-
-    zip_file.writestr("payload_descriptor.json", payload_descriptor.json(indent=4))
+    if PYDANTIC_V2:
+        payload_descriptor_json = payload_descriptor.model_dump_json(indent=4)
+    else:
+        payload_descriptor_json = payload_descriptor.json(indent=4)
+    zip_file.writestr("payload_descriptor.json", payload_descriptor_json)
 
 
 def make_payload(

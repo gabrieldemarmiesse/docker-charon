@@ -8,6 +8,9 @@ from typing import IO, Dict, Iterator, Optional, Union
 import requests
 from dxf import DXF, DXFBase
 from pydantic import BaseModel
+from importlib.metadata import version
+
+PYDANTIC_V2 = version("pydantic").startswith("2.")
 
 
 class PayloadSide(Enum):
