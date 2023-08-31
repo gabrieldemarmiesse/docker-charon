@@ -10,8 +10,9 @@ import pytest
 from python_on_whales import docker
 
 import docker_charon
-from docker_charon import make_payload, push_payload
 from docker_charon.common import PROJECT_ROOT
+from docker_charon.decoder import push_payload
+from docker_charon.encoder import make_payload
 
 
 @pytest.fixture
@@ -352,7 +353,7 @@ def test_raise_error_if_image_is_not_here_and_strict(tmp_path):
         secure=False,
     )
 
-    with pytest.raises(docker_charon.ManifestNotFound) as err:
+    with pytest.raises(docker_charon.decoder.ManifestNotFound) as err:
         push_payload(payload_path, strict=True, registry="localhost:5001", secure=False)
 
     assert "ubuntu:augmented" in str(err.value)
