@@ -353,7 +353,7 @@ def test_raise_error_if_image_is_not_here_and_strict(tmp_path):
         secure=False,
     )
 
-    with pytest.raises(docker_charon.ManifestNotFound) as err:
+    with pytest.raises(docker_charon.decoder.ManifestNotFound) as err:
         push_payload(payload_path, strict=True, registry="localhost:5001", secure=False)
 
     assert "ubuntu:augmented" in str(err.value)
