@@ -16,7 +16,7 @@ jobs:
     - name: Set up dependencies with pydantic v1.x
       run: |
         pip install -r tests/requirements.txt
-        pip install pydantic>=1.5,<2
+        pip install 'pydantic>=1.5,<2'
         pip install -e .
     - name: Run tests with pydantic v1.x
       run: pytest -v ./tests
@@ -34,7 +34,7 @@ jobs:
       - name: Set up dependencies with pydantic v2.x
         run: |
           pip install -r tests/requirements.txt
-          pip install pydantic>=2,<3
+          pip install 'pydantic>=2,<3'
           pip install -e .
       - name: Run tests with pydantic v2.x
         run: pytest -v ./tests
