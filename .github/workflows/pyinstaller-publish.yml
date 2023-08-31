@@ -19,7 +19,7 @@ jobs:
         python-version: '3.9'
     - name: Install dependencies
       run: |
-        pip install python-on-whales==0.32.0
+        pip install python-on-whales==0.64.2
     - name: Build
       run: |
         python .github/workflows/pyinstaller_bundle.py
