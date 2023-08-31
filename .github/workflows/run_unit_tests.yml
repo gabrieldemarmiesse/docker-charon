@@ -1,28 +1,28 @@
 name: Run the unit tests
 
-on: [push, pull_request]
+on: [ push, pull_request ]
 
 
 jobs:
-  unit-tests-pydantic-1:
+  unit-tests-with-pydantic-v1:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/setup-python@v2
-      with:
-        python-version: '3.8'
-    - uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-    - name: Set up dependencies with pydantic v1.x
-      run: |
-        pip install -r tests/requirements.txt
-        pip install 'pydantic>=1.5,<2'
-        pip install -e .
-    - name: Run tests with pydantic v1.x
-      run: pytest -v ./tests
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Set up dependencies with pydantic v1.x
+        run: |
+          pip install -r tests/requirements.txt
+          pip install 'pydantic>=1.5,<2'
+          pip install -e .
+      - name: Run tests with pydantic v1.x
+        run: pytest -v ./tests
 
 
-  unit-tests-pydantic-2:
+  unit-tests-with-pydantic-v2:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-python@v2
