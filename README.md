@@ -4,7 +4,7 @@ Transfer your Docker images to an air-gapped system efficiently.
 
 (An air-gapped system is a system that is not connected to the internet)
 
-![](./images/logo.jpg)
+![](https://github.com/gabrieldemarmiesse/docker-charon/blob/cbf5e2a6f50152c6754000ae8c0551c884450f15/images/logo.jpg)
 
 
 From wikipedia:
@@ -302,7 +302,7 @@ This is actually what is recommended for simple use cases.
 
 Here is the recap of the `docker pull -> docker save -> docker load -> docker push` method:
 
-![](./images/with_docker_save_load.png)
+![](https://github.com/termim/docker-charon/blob/a2a499a715f42947fb940bc4a808b23c316994d4/images/with_docker_save_load.png)
 
 
 But let's say that you want to scale your deliveries, make regular updates, you'll soon 
@@ -325,7 +325,7 @@ transferred a second time.
 
 Here is the recap of the docker-charon method:
 
-![](./images/with_docker_charon.png)
+![](https://github.com/termim/docker-charon/blob/a2a499a715f42947fb940bc4a808b23c316994d4/images/with_docker_charon.png)
 
 
 ### How does it work?
