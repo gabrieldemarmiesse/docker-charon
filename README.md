@@ -1,5 +1,11 @@
 # docker-charon
 
+
+**Note: This project is no longer maintained. Users can still install the latest version (0.4.3) but 
+if someone wishes to have something fixed/changed, then this user should fork the project.
+If someone wishes to continue to maintain the project, feel free to publish it on Pypi under the name
+docker-charon-2 or something similar.**
+
 Transfer your Docker images to an air-gapped system efficiently. 
 
 (An air-gapped system is a system that is not connected to the internet)
